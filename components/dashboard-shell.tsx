@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { MetricCard } from "./metric-card";
 import { SectionChart } from "./section-chart";
 import { CtaLeaderboard } from "./cta-leaderboard";
@@ -30,17 +29,11 @@ export function DashboardShell() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [range, setRange] = useState(7);
-  const router = useRouter();
-
   const fetchMetrics = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
       const res = await fetch(`/api/metrics?range=${range}`);
-      if (res.status === 401) {
-        router.push("/login");
-        return;
-      }
       if (!res.ok) throw new Error("Falha ao carregar métricas");
       const json = await res.json();
       setData(json);
@@ -49,17 +42,11 @@ export function DashboardShell() {
     } finally {
       setLoading(false);
     }
-  }, [range, router]);
+  }, [range]);
 
   useEffect(() => {
     fetchMetrics();
   }, [fetchMetrics]);
-
-  async function handleLogout() {
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/login");
-    router.refresh();
-  }
 
   return (
     <div className="min-h-screen bg-surface-0">
@@ -90,13 +77,6 @@ export function DashboardShell() {
                 </button>
               ))}
             </div>
-
-            <button
-              onClick={handleLogout}
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Sair
-            </button>
           </div>
         </div>
       </header>
