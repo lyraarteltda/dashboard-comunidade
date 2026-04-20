@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/session";
 import { queryHogQL } from "@/lib/posthog-query";
 
 export const dynamic = "force-dynamic";
@@ -12,11 +11,6 @@ function getDaysParam(searchParams: URLSearchParams): number {
 }
 
 export async function GET(request: Request) {
-  const session = await getSession();
-  if (!session.isLoggedIn) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   const { searchParams } = new URL(request.url);
   const days = getDaysParam(searchParams);
 
