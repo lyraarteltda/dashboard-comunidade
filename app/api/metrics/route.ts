@@ -1,0 +1,95 @@
+import { NextResponse } from "next/server";
+import { getSession } from "@/lib/session";
+import { queryHogQL } from "@/lib/posthog-query";
+
+export const dynamic = "force-dynamic";
+
+function getDaysParam(searchParams: URLSearchParams): number {
+  const range = searchParams.get("range") || "7";
+  const days = parseInt(range, 10);
+  if ([7, 30, 90].includes(days)) return days;
+  return 7;
+}
+
+export async function GET(request: Request) {
+  const session = await getSession();
+  if (!session.isLoggedIn) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { searchParams } = new URL(request.url);
+  const days = getDaysParam(searchParams);
+
+  try {
+    const [visitsResult, visitsYesterdayResult, sectionResult, ctaResult] = await Promise.all([
+      queryHogQL(
+        `SELECT count() as total FROM events WHERE event = '$pageview' AND timestamp > now() - interval ${days} day`
+      ),
+      queryHogQL(
+        `SELECT
+          countIf(timestamp > now() - interval 1 day) as today,
+          countIf(timestamp > now() - interval 2 day AND timestamp <= now() - interval 1 day) as yesterday
+        FROM events WHERE event = '$pageview'`
+      ),
+      queryHogQL(
+        `SELECT properties.$current_url as section, count() as views
+        FROM events
+        WHERE event = '$pageview'
+          AND timestamp > now() - interval ${days} day
+        GROUP BY section
+        ORDER BY views DESC
+        LIMIT 10`
+      ),
+      queryHogQL(
+        `SELECT
+          properties.$el_text as cta_text,
+          count() as clicks
+        FROM events
+        WHERE event = '$autocapture'
+          AND properties.$el_text != ''
+          AND properties.$el_text IS NOT NULL
+          AND timestamp > now() - interval ${days} day
+        GROUP BY cta_text
+        ORDER BY clicks DESC
+        LIMIT 10`
+      ),
+    ]);
+
+    const totalVisits = Number(visitsResult.results[0]?.[0] || 0);
+    const todayVisits = Number(visitsYesterdayResult.results[0]?.[0] || 0);
+    const yesterdayVisits = Number(visitsYesterdayResult.results[0]?.[1] || 0);
+    const visitsDelta = yesterdayVisits > 0
+      ? ((todayVisits - yesterdayVisits) / yesterdayVisits) * 100
+      : 0;
+
+    const sections = sectionResult.results.map(([url, views]) => ({
+      name: String(url || "Unknown"),
+      value: Number(views),
+    }));
+
+    const ctas = ctaResult.results.map(([text, clicks]) => ({
+      name: String(text || "Unknown"),
+      value: Number(clicks),
+    }));
+
+    const totalCtaClicks = ctas.reduce((sum, c) => sum + c.value, 0);
+
+    return NextResponse.json({
+      totalVisits,
+      visitsDelta: Math.round(visitsDelta * 10) / 10,
+      todayVisits,
+      yesterdayVisits,
+      totalCtaClicks,
+      sections,
+      ctas,
+      range: days,
+      fetchedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error("Metrics fetch error:", error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Failed to fetch metrics" },
+      { status: 500 }
+    );
+  }
+}
