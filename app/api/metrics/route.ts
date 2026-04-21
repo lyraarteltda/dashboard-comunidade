@@ -15,22 +15,25 @@ export async function GET(request: Request) {
   const days = getDaysParam(searchParams);
 
   try {
+    const hostFilter = `properties.$host = 'comunidade.maestrosdaia.com'`;
+
     const [visitsResult, visitsYesterdayResult, sectionResult, ctaResult] = await Promise.all([
       queryHogQL(
-        `SELECT count() as total FROM events WHERE event = '$pageview' AND timestamp > now() - interval ${days} day`
+        `SELECT count() as total FROM events WHERE event = '$pageview' AND ${hostFilter} AND timestamp > now() - interval ${days} day`
       ),
       queryHogQL(
         `SELECT
           countIf(timestamp > now() - interval 1 day) as today,
           countIf(timestamp > now() - interval 2 day AND timestamp <= now() - interval 1 day) as yesterday
-        FROM events WHERE event = '$pageview'`
+        FROM events WHERE event = '$pageview' AND ${hostFilter}`
       ),
       queryHogQL(
-        `SELECT properties.$current_url as section, count() as views
+        `SELECT properties.$pathname as path, count() as views
         FROM events
         WHERE event = '$pageview'
+          AND ${hostFilter}
           AND timestamp > now() - interval ${days} day
-        GROUP BY section
+        GROUP BY path
         ORDER BY views DESC
         LIMIT 10`
       ),
@@ -40,6 +43,7 @@ export async function GET(request: Request) {
           count() as clicks
         FROM events
         WHERE event = '$autocapture'
+          AND ${hostFilter}
           AND properties.$el_text != ''
           AND properties.$el_text IS NOT NULL
           AND timestamp > now() - interval ${days} day
@@ -56,8 +60,8 @@ export async function GET(request: Request) {
       ? ((todayVisits - yesterdayVisits) / yesterdayVisits) * 100
       : 0;
 
-    const sections = sectionResult.results.map(([url, views]) => ({
-      name: String(url || "Unknown"),
+    const sections = sectionResult.results.map(([path, views]) => ({
+      name: String(path) === "/" ? "Home (/)" : String(path || "Unknown"),
       value: Number(views),
     }));
 
