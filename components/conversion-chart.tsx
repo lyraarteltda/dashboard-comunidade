@@ -84,7 +84,7 @@ export function ConversionChart({
           </p>
         ) : (
           <AreaChart
-            className="h-[220px]"
+            className="h-[220px] [&_.recharts-cartesian-grid_line]:stroke-[oklch(1_0_0/0.06)] [&_.recharts-yAxis_text]:fill-[oklch(0.7_0.01_260)] [&_.recharts-xAxis_text]:fill-[oklch(0.7_0.01_260)]"
             data={chartData}
             index="dia"
             categories={["Conversão (%)"]}
@@ -94,7 +94,7 @@ export function ConversionChart({
             showLegend={false}
             showYAxis
             showXAxis
-            showGridLines={false}
+            showGridLines
             yAxisWidth={40}
             valueFormatter={(v: number) => `${v.toFixed(2)}%`}
             customTooltip={({ payload, active }) => {

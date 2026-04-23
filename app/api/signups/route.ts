@@ -1,13 +1,7 @@
 import { NextResponse } from "next/server";
+import { parseDateRangeForSupabase } from "@/lib/date-params";
 
 export const dynamic = "force-dynamic";
-
-function getDaysParam(searchParams: URLSearchParams): number {
-  const range = searchParams.get("range") || "30";
-  const days = parseInt(range, 10);
-  if ([7, 30, 90].includes(days)) return days;
-  return 30;
-}
 
 export async function GET(request: Request) {
   const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -21,12 +15,11 @@ export async function GET(request: Request) {
   }
 
   const { searchParams } = new URL(request.url);
-  const days = getDaysParam(searchParams);
-  const since = new Date(Date.now() - days * 86_400_000).toISOString();
+  const { since, until } = parseDateRangeForSupabase(searchParams);
 
   try {
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/community_signups?select=created_at&created_at=gte.${since}&order=created_at.asc&limit=10000`,
+      `${SUPABASE_URL}/rest/v1/community_signups?select=created_at&created_at=gte.${since}&created_at=lt.${until}&order=created_at.asc&limit=10000`,
       {
         headers: {
           apikey: KEY,
@@ -54,28 +47,18 @@ export async function GET(request: Request) {
       .sort((a, b) => a.day.localeCompare(b.day));
 
     const totalSignups = rows.length;
-    const todayKey = new Date().toISOString().slice(0, 10);
-    const todaySignups = byDay.get(todayKey) ?? 0;
-    const yesterdayKey = new Date(Date.now() - 86_400_000)
-      .toISOString()
-      .slice(0, 10);
-    const yesterdaySignups = byDay.get(yesterdayKey) ?? 0;
 
     return NextResponse.json({
       totalSignups,
-      todaySignups,
-      yesterdaySignups,
       series,
-      range: days,
+      from: since,
+      to: until,
       fetchedAt: new Date().toISOString(),
     });
   } catch (error) {
     console.error("Signups fetch error:", error);
     return NextResponse.json(
-      {
-        error:
-          error instanceof Error ? error.message : "Failed to fetch signups",
-      },
+      { error: error instanceof Error ? error.message : "Failed to fetch signups" },
       { status: 500 }
     );
   }

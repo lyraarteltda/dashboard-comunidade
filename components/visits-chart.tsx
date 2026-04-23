@@ -3,8 +3,8 @@
 import { AreaChart } from "@tremor/react";
 import { Skeleton } from "@/components/ui/skeleton";
 
-interface SignupsChartProps {
-  series: { day: string; count: number }[];
+interface VisitsChartProps {
+  series: { day: string; pageviews: number }[];
   loading?: boolean;
 }
 
@@ -13,11 +13,11 @@ function formatDay(dateStr: string): string {
   return `${d}/${m}`;
 }
 
-export function SignupsChart({ series, loading }: SignupsChartProps) {
+export function VisitsChart({ series, loading }: VisitsChartProps) {
   if (loading) {
     return (
       <div className="rounded-xl border border-border bg-card p-6 shadow-[var(--shadow-elevation-1)]">
-        <Skeleton className="h-4 w-56 mb-6" />
+        <Skeleton className="h-4 w-48 mb-6" />
         <Skeleton className="h-[220px] w-full rounded-lg" />
       </div>
     );
@@ -25,13 +25,13 @@ export function SignupsChart({ series, loading }: SignupsChartProps) {
 
   const chartData = series.map((s) => ({
     dia: formatDay(s.day),
-    Cadastros: s.count,
+    Visitas: s.pageviews,
   }));
 
   return (
     <div className="rounded-xl border border-border bg-card p-6 shadow-[var(--shadow-elevation-1)]">
       <h3 className="mb-5 text-sm font-semibold text-foreground">
-        Cadastros por dia
+        Visitas por dia
       </h3>
       {chartData.length === 0 ? (
         <p className="text-sm text-muted-foreground">Sem dados no período</p>
@@ -40,15 +40,15 @@ export function SignupsChart({ series, loading }: SignupsChartProps) {
           className="h-[220px] [&_.recharts-cartesian-grid_line]:stroke-[oklch(1_0_0/0.06)] [&_.recharts-yAxis_text]:fill-[oklch(0.7_0.01_260)] [&_.recharts-xAxis_text]:fill-[oklch(0.7_0.01_260)]"
           data={chartData}
           index="dia"
-          categories={["Cadastros"]}
-          colors={["cyan"]}
+          categories={["Visitas"]}
+          colors={["amber"]}
           showGradient
           curveType="monotone"
           showLegend={false}
           showYAxis
           showXAxis
           showGridLines
-          yAxisWidth={36}
+          yAxisWidth={44}
           valueFormatter={(v: number) => v.toLocaleString("pt-BR")}
           autoMinValue
         />

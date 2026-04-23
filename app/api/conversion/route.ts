@@ -1,14 +1,8 @@
 import { NextResponse } from "next/server";
 import { queryHogQL } from "@/lib/posthog-query";
+import { parseDateRange, parseDateRangeForSupabase } from "@/lib/date-params";
 
 export const dynamic = "force-dynamic";
-
-function getDaysParam(searchParams: URLSearchParams): number {
-  const range = searchParams.get("range") || "30";
-  const days = parseInt(range, 10);
-  if ([7, 30, 90].includes(days)) return days;
-  return 30;
-}
 
 interface DaySeries {
   day: string;
@@ -29,7 +23,8 @@ export async function GET(request: Request) {
   }
 
   const { searchParams } = new URL(request.url);
-  const days = getDaysParam(searchParams);
+  const { fromISO, toISO } = parseDateRange(searchParams);
+  const { since, until } = parseDateRangeForSupabase(searchParams);
   const hostFilter = `properties.$host = 'comunidade.maestrosdaia.com'`;
 
   try {
@@ -39,12 +34,13 @@ export async function GET(request: Request) {
          FROM events
          WHERE event = '$pageview'
            AND ${hostFilter}
-           AND timestamp > now() - interval ${days} day
+           AND timestamp >= toDateTime('${fromISO}')
+           AND timestamp < toDateTime('${toISO}')
          GROUP BY day
          ORDER BY day ASC`
       ),
       fetch(
-        `${SUPABASE_URL}/rest/v1/comunidade_purchases?select=purchase_date,payment_status&payment_status=eq.approved&order=purchase_date.asc&limit=10000`,
+        `${SUPABASE_URL}/rest/v1/comunidade_purchases?select=purchase_date,payment_status&payment_status=eq.approved&purchase_date=gte.${since.slice(0, 10)}&purchase_date=lt.${until.slice(0, 10)}&order=purchase_date.asc&limit=10000`,
         {
           headers: {
             apikey: SB_KEY,
@@ -63,16 +59,10 @@ export async function GET(request: Request) {
     const purchaseRows: { purchase_date: string; payment_status: string }[] =
       await purchasesRes.json();
 
-    const since = new Date(Date.now() - days * 86_400_000)
-      .toISOString()
-      .slice(0, 10);
-
     const purchasesByDay = new Map<string, number>();
     for (const r of purchaseRows) {
       const d = r.purchase_date.slice(0, 10);
-      if (d >= since) {
-        purchasesByDay.set(d, (purchasesByDay.get(d) ?? 0) + 1);
-      }
+      purchasesByDay.set(d, (purchasesByDay.get(d) ?? 0) + 1);
     }
 
     const visitorsByDay = new Map<string, number>();
@@ -116,13 +106,14 @@ export async function GET(request: Request) {
         : null;
 
     return NextResponse.json({
-      range: days,
       series,
       totals: {
         visitors: totalVisitors,
         purchases: totalPurchases,
         conversion_pct: totalConversion,
       },
+      from: fromISO,
+      to: toISO,
       fetchedAt: new Date().toISOString(),
     });
   } catch (error) {
