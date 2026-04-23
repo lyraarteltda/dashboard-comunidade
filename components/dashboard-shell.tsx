@@ -5,6 +5,7 @@ import { MetricCard } from "./metric-card";
 import { SectionChart } from "./section-chart";
 import { CtaLeaderboard } from "./cta-leaderboard";
 import { SignupsChart } from "./signups-chart";
+import { ConversionChart } from "./conversion-chart";
 import { PlaceholderCard } from "./placeholder-card";
 
 interface MetricsData {
@@ -28,6 +29,22 @@ interface SignupsData {
   fetchedAt: string;
 }
 
+interface ConversionData {
+  range: number;
+  series: {
+    day: string;
+    visitors: number;
+    purchases: number;
+    conversion_pct: number | null;
+  }[];
+  totals: {
+    visitors: number;
+    purchases: number;
+    conversion_pct: number | null;
+  };
+  fetchedAt: string;
+}
+
 const RANGES = [
   { label: "7d", value: 7 },
   { label: "30d", value: 30 },
@@ -37,8 +54,10 @@ const RANGES = [
 export function DashboardShell() {
   const [data, setData] = useState<MetricsData | null>(null);
   const [signups, setSignups] = useState<SignupsData | null>(null);
+  const [conversion, setConversion] = useState<ConversionData | null>(null);
   const [loading, setLoading] = useState(true);
   const [signupsLoading, setSignupsLoading] = useState(true);
+  const [conversionLoading, setConversionLoading] = useState(true);
   const [error, setError] = useState("");
   const [range, setRange] = useState(7);
 
@@ -71,10 +90,25 @@ export function DashboardShell() {
     }
   }, [range]);
 
+  const fetchConversion = useCallback(async () => {
+    setConversionLoading(true);
+    try {
+      const res = await fetch(`/api/conversion?range=${range}`);
+      if (!res.ok) throw new Error("Falha ao carregar conversão");
+      const json = await res.json();
+      setConversion(json);
+    } catch {
+      // non-blocking
+    } finally {
+      setConversionLoading(false);
+    }
+  }, [range]);
+
   useEffect(() => {
     fetchMetrics();
     fetchSignups();
-  }, [fetchMetrics, fetchSignups]);
+    fetchConversion();
+  }, [fetchMetrics, fetchSignups, fetchConversion]);
 
   return (
     <div className="min-h-screen bg-surface-0">
@@ -182,11 +216,36 @@ export function DashboardShell() {
           <CtaLeaderboard ctas={data?.ctas || []} loading={loading} />
         </div>
 
-        {/* Signups daily chart */}
-        <div className="mt-6">
+        {/* Signups + Conversion charts row */}
+        <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
           <SignupsChart
             series={signups?.series || []}
             loading={signupsLoading}
+          />
+          <ConversionChart
+            series={conversion?.series || []}
+            totals={conversion?.totals ?? null}
+            loading={conversionLoading}
+          />
+        </div>
+
+        {/* Conversion metric cards */}
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <MetricCard
+            title="Compras no período"
+            value={conversion?.totals?.purchases}
+            suffix={`últimos ${range}d`}
+            loading={conversionLoading}
+          />
+          <MetricCard
+            title="Taxa de conversão"
+            value={
+              conversion?.totals?.conversion_pct != null
+                ? `${conversion.totals.conversion_pct.toFixed(2)}%`
+                : undefined
+            }
+            suffix="visitantes → compra"
+            loading={conversionLoading}
           />
         </div>
 
@@ -196,11 +255,6 @@ export function DashboardShell() {
             title="Leads"
             description="Integração com formulário de captura"
             icon="users"
-          />
-          <PlaceholderCard
-            title="Compradores"
-            description="Integração com gateway de pagamento"
-            icon="credit-card"
           />
         </div>
 

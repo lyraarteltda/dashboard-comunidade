@@ -4,7 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 interface MetricCardProps {
   title: string;
-  value?: number;
+  value?: number | string;
   delta?: number;
   suffix?: string;
   loading?: boolean;
@@ -36,7 +36,11 @@ export function MetricCard({ title, value, delta, suffix, loading }: MetricCardP
         {title}
       </p>
       <p className="mt-2 font-mono text-3xl font-bold tabular-nums text-foreground">
-        {value?.toLocaleString("pt-BR") ?? "—"}
+        {value == null
+          ? "—"
+          : typeof value === "string"
+            ? value
+            : value.toLocaleString("pt-BR")}
       </p>
       <div className="mt-1.5 flex items-center gap-2">
         {delta !== undefined && (
