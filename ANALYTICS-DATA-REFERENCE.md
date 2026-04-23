@@ -406,6 +406,85 @@ Both should agree (API total is range-bounded, direct count is all-time — use 
 
 ---
 
+## 10b. Supabase — Comunidade Purchases (Paid Community)
+
+### 10b.1 Source
+
+**Supabase project:** `arsfqjhvgphsglouwdsn` · Table: `comunidade_purchases` · Schema: `public`
+
+This table records every purchase of the paid community (Comunidade Maestros da IA). Data is backfilled from OnProfit dashboard scrapes.
+
+Key columns:
+- `id` (uuid) — primary key
+- `purchase_date` (timestamptz) — **the actual purchase date** (use for day-by-day grouping)
+- `created_at` (timestamptz) — row insertion time (NOT useful for grouping — backfill rows share the same timestamp)
+- `payment_status` (text) — filter by `approved` for completed purchases
+- `product_name` (text) — e.g. "Comunidade Maestros da IA | Assinatura Mensal"
+- `offer_name` (text) — e.g. "Assinatura Mensal"
+- `price_reais` (numeric) — price in BRL
+- `buyer_name`, `buyer_email`, `buyer_phone` — buyer PII
+- `utm_source`, `utm_medium`, `utm_campaign`, `utm_content`, `utm_term` — UTM fields (currently null for backfill data)
+- `source` (text) — e.g. "onprofit_backfill"
+
+### 10b.2 Credentials
+
+Same Supabase service role key as section 10.2 (shared project `arsfqjhvgphsglouwdsn`).
+
+### 10b.3 Dashboard API endpoint — Conversion Rate
+
+```
+GET /api/conversion?range=30
+```
+
+Returns:
+```json
+{
+  "range": 30,
+  "series": [
+    {"day":"2026-04-20","visitors":33,"purchases":3,"conversion_pct":9.09},
+    {"day":"2026-04-21","visitors":78,"purchases":2,"conversion_pct":2.56}
+  ],
+  "totals": {"visitors": 319, "purchases": 7, "conversion_pct": 2.19},
+  "fetchedAt": "2026-04-23T21:16:06.742Z"
+}
+```
+
+**How conversion rate is computed:**
+1. PostHog HogQL: `count(DISTINCT distinct_id)` per day for `$pageview` events scoped to `comunidade.maestrosdaia.com` → daily unique visitors.
+2. Supabase: `comunidade_purchases` rows with `payment_status = 'approved'`, grouped by `purchase_date` day → daily purchase count.
+3. Join on day. `conversion_pct = (purchases / visitors) * 100`, rounded to 2 decimals.
+4. `totals.visitors` is the sum of daily unique visitors (may exceed 30d deduplicated unique count due to cross-day overlap — this is expected).
+
+### 10b.4 Sample curl to query purchases by day (direct Supabase)
+
+```bash
+KEY="<service_role_key>"
+curl -s "https://arsfqjhvgphsglouwdsn.supabase.co/rest/v1/comunidade_purchases?select=purchase_date,payment_status&payment_status=eq.approved&order=purchase_date.asc" \
+  -H "apikey: $KEY" -H "Authorization: Bearer $KEY" \
+  | python3 -c "
+import sys, json, collections
+rows = json.load(sys.stdin)
+by_day = collections.Counter(r['purchase_date'][:10] for r in rows)
+for day, count in sorted(by_day.items()):
+    print(f'{day}: {count}')
+print(f'Total: {len(rows)}')
+"
+```
+
+### 10b.5 Cross-check
+
+```bash
+# Dashboard endpoint
+curl -s 'https://dash.maestrosdaia.com/api/conversion?range=30' | python3 -c 'import sys,json; d=json.load(sys.stdin); print("API:", d["totals"])'
+
+# Direct Supabase count
+curl -sI "https://arsfqjhvgphsglouwdsn.supabase.co/rest/v1/comunidade_purchases?select=id&payment_status=eq.approved&limit=1" \
+  -H "apikey: $KEY" -H "Authorization: Bearer $KEY" -H "Prefer: count=exact" \
+  | grep -i content-range
+```
+
+---
+
 ## 11. Related assets
 
 | Asset | Location |
