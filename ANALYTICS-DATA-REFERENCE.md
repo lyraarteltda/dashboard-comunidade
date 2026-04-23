@@ -326,7 +326,87 @@ PostHog free tier: 5 req/sec sustained. For batch analysis, space requests with 
 
 ---
 
-## 10. Related assets
+## 10. Supabase — Free Community Signups
+
+### 10.1 Source
+
+**Supabase project:** `arsfqjhvgphsglouwdsn` · Table: `community_signups` · Schema: `public`
+
+This table records every signup to the free community (comunidade aberta). Each row has: `id` (uuid), `name`, `email`, `whatsapp`, `signup_date`, `status`, `verified_date`, `source`, `created_at`, `password`.
+
+The `created_at` column (timestamptz, auto-set by Supabase) is used for day-by-day aggregation.
+
+### 10.2 Credentials
+
+Supabase service role key lives in:
+`/Users/arthurendo/Desktop/AI COMPANY/_chiefs/cmo/head-of-automations/n8n-automation-engineer/.claude/keys.md` → section `## Supabase (Maestros da IA)`
+
+Env vars on Netlify (server-only, never `NEXT_PUBLIC_`):
+- `SUPABASE_URL` = `https://arsfqjhvgphsglouwdsn.supabase.co`
+- `SUPABASE_SERVICE_ROLE_KEY` = (JWT, starts with `eyJ...`)
+
+### 10.3 Dashboard API endpoint
+
+```
+GET /api/signups?range=30
+```
+
+Returns:
+```json
+{
+  "totalSignups": 71,
+  "todaySignups": 12,
+  "yesterdaySignups": 8,
+  "series": [{"day":"2026-04-20","count":5}, ...],
+  "range": 30,
+  "fetchedAt": "2026-04-23T18:00:00.000Z"
+}
+```
+
+### 10.4 Sample curl to query signups by day (direct Supabase)
+
+```bash
+KEY="<service_role_key>"
+curl -s "https://arsfqjhvgphsglouwdsn.supabase.co/rest/v1/community_signups?select=created_at&order=created_at.asc" \
+  -H "apikey: $KEY" -H "Authorization: Bearer $KEY" \
+  | python3 -c "
+import sys, json, collections
+rows = json.load(sys.stdin)
+by_day = collections.Counter(r['created_at'][:10] for r in rows)
+for day, count in sorted(by_day.items()):
+    print(f'{day}: {count}')
+print(f'Total: {len(rows)}')
+"
+```
+
+### 10.5 Differences from PostHog
+
+| Aspect | PostHog (pageviews) | Supabase (signups) |
+|---|---|---|
+| What it measures | Anonymous page visits | Named form submissions |
+| Timestamp timezone | UTC (project default) | UTC (Supabase default) |
+| Deduplication | `distinct_id` (cookie-based) | `id` (uuid, one per signup) |
+| Start date | 2026-04-20 14:10 UTC | Depends on when the form went live |
+| Scoping filter | `properties.$host` | Not needed (table is single-purpose) |
+
+### 10.6 Cross-check
+
+To verify dashboard numbers match Supabase directly:
+```bash
+# Dashboard endpoint
+curl -s 'https://dash.maestrosdaia.com/api/signups?range=30' | python3 -c 'import sys,json; d=json.load(sys.stdin); print("API total:", d["totalSignups"])'
+
+# Direct Supabase count
+curl -sI "https://arsfqjhvgphsglouwdsn.supabase.co/rest/v1/community_signups?select=id&limit=1" \
+  -H "apikey: $KEY" -H "Authorization: Bearer $KEY" -H "Prefer: count=exact" \
+  | grep -i content-range
+```
+
+Both should agree (API total is range-bounded, direct count is all-time — use matching filters).
+
+---
+
+## 11. Related assets
 
 | Asset | Location |
 |---|---|

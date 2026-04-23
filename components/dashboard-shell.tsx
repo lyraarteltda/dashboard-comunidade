@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { MetricCard } from "./metric-card";
 import { SectionChart } from "./section-chart";
 import { CtaLeaderboard } from "./cta-leaderboard";
+import { SignupsChart } from "./signups-chart";
 import { PlaceholderCard } from "./placeholder-card";
 
 interface MetricsData {
@@ -18,6 +19,15 @@ interface MetricsData {
   fetchedAt: string;
 }
 
+interface SignupsData {
+  totalSignups: number;
+  todaySignups: number;
+  yesterdaySignups: number;
+  series: { day: string; count: number }[];
+  range: number;
+  fetchedAt: string;
+}
+
 const RANGES = [
   { label: "7d", value: 7 },
   { label: "30d", value: 30 },
@@ -26,9 +36,12 @@ const RANGES = [
 
 export function DashboardShell() {
   const [data, setData] = useState<MetricsData | null>(null);
+  const [signups, setSignups] = useState<SignupsData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [signupsLoading, setSignupsLoading] = useState(true);
   const [error, setError] = useState("");
   const [range, setRange] = useState(7);
+
   const fetchMetrics = useCallback(async () => {
     setLoading(true);
     setError("");
@@ -44,9 +57,24 @@ export function DashboardShell() {
     }
   }, [range]);
 
+  const fetchSignups = useCallback(async () => {
+    setSignupsLoading(true);
+    try {
+      const res = await fetch(`/api/signups?range=${range}`);
+      if (!res.ok) throw new Error("Falha ao carregar cadastros");
+      const json = await res.json();
+      setSignups(json);
+    } catch {
+      // signups error is non-blocking — the card shows "—"
+    } finally {
+      setSignupsLoading(false);
+    }
+  }, [range]);
+
   useEffect(() => {
     fetchMetrics();
-  }, [fetchMetrics]);
+    fetchSignups();
+  }, [fetchMetrics, fetchSignups]);
 
   return (
     <div className="min-h-screen bg-surface-0">
@@ -123,14 +151,47 @@ export function DashboardShell() {
           />
         </div>
 
+        {/* Signups metric card */}
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <MetricCard
+            title="Cadastros comunidade gratuita"
+            value={signups?.totalSignups}
+            suffix={`últimos ${range}d`}
+            loading={signupsLoading}
+          />
+          <MetricCard
+            title="Cadastros hoje"
+            value={signups?.todaySignups}
+            delta={
+              signups && signups.yesterdaySignups > 0
+                ? Math.round(
+                    ((signups.todaySignups - signups.yesterdaySignups) /
+                      signups.yesterdaySignups) *
+                      100
+                  )
+                : undefined
+            }
+            suffix="vs ontem"
+            loading={signupsLoading}
+          />
+        </div>
+
         {/* Charts row */}
         <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
           <SectionChart sections={data?.sections || []} loading={loading} />
           <CtaLeaderboard ctas={data?.ctas || []} loading={loading} />
         </div>
 
+        {/* Signups daily chart */}
+        <div className="mt-6">
+          <SignupsChart
+            series={signups?.series || []}
+            loading={signupsLoading}
+          />
+        </div>
+
         {/* Placeholder row */}
-        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <PlaceholderCard
             title="Leads"
             description="Integração com formulário de captura"
@@ -140,11 +201,6 @@ export function DashboardShell() {
             title="Compradores"
             description="Integração com gateway de pagamento"
             icon="credit-card"
-          />
-          <PlaceholderCard
-            title="Membros ativos"
-            description="Integração com área de membros"
-            icon="activity"
           />
         </div>
 
