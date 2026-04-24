@@ -8,6 +8,7 @@ import { UtmChart } from "./utm-chart";
 import { VisitsChart } from "./visits-chart";
 import { SignupsChart } from "./signups-chart";
 import { CtaLeaderboard } from "./cta-leaderboard";
+import { UtmBuyersChart } from "./utm-buyers-chart";
 import { DateRangePicker } from "./date-range-picker";
 
 interface MetricsData {
@@ -43,6 +44,12 @@ interface UtmData {
   fetchedAt: string;
 }
 
+interface UtmBuyersData {
+  aggregated: Record<string, { value: string; count: number }[]>;
+  totalBuyers: number;
+  fetchedAt: string;
+}
+
 function toParam(d: Date): string {
   return format(d, "yyyy-MM-dd");
 }
@@ -55,11 +62,13 @@ export function DashboardShell() {
   const [signups, setSignups] = useState<SignupsData | null>(null);
   const [conversion, setConversion] = useState<ConversionData | null>(null);
   const [utm, setUtm] = useState<UtmData | null>(null);
+  const [utmBuyers, setUtmBuyers] = useState<UtmBuyersData | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [signupsLoading, setSignupsLoading] = useState(true);
   const [conversionLoading, setConversionLoading] = useState(true);
   const [utmLoading, setUtmLoading] = useState(true);
+  const [utmBuyersLoading, setUtmBuyersLoading] = useState(true);
   const [error, setError] = useState("");
 
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
@@ -74,6 +83,7 @@ export function DashboardShell() {
       setSignupsLoading(true);
       setConversionLoading(true);
       setUtmLoading(true);
+      setUtmBuyersLoading(true);
       setError("");
 
       const fetchMetrics = async () => {
@@ -124,7 +134,19 @@ export function DashboardShell() {
         }
       };
 
-      await Promise.all([fetchMetrics(), fetchSignups(), fetchConversion(), fetchUtm()]);
+      const fetchUtmBuyers = async () => {
+        try {
+          const res = await fetch(`/api/utm-buyers?${qs}`);
+          if (!res.ok) throw new Error("Falha ao carregar UTM compradores");
+          setUtmBuyers(await res.json());
+        } catch {
+          // non-blocking
+        } finally {
+          setUtmBuyersLoading(false);
+        }
+      };
+
+      await Promise.all([fetchMetrics(), fetchSignups(), fetchConversion(), fetchUtm(), fetchUtmBuyers()]);
     },
     []
   );
@@ -186,7 +208,12 @@ export function DashboardShell() {
           />
         </div>
 
-        {/* Conversion chart — first chart after cards */}
+        {/* UTM dos Compradores — primary chart after cards */}
+        <div className="mt-6">
+          <UtmBuyersChart data={utmBuyers} loading={utmBuyersLoading} />
+        </div>
+
+        {/* Conversion chart */}
         <div className="mt-6">
           <ConversionChart
             series={conversion?.series || []}
