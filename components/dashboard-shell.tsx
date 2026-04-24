@@ -10,6 +10,7 @@ import { SignupsChart } from "./signups-chart";
 import { CtaLeaderboard } from "./cta-leaderboard";
 import { UtmBuyersChart } from "./utm-buyers-chart";
 import { DateRangePicker } from "./date-range-picker";
+import { NavHeader } from "./nav-header";
 
 interface MetricsData {
   totalVisits: number;
@@ -165,21 +166,13 @@ export function DashboardShell() {
   return (
     <div className="min-h-screen bg-surface-0">
       {/* Top nav */}
-      <header className="sticky top-0 z-50 border-b border-border bg-surface-0/80 backdrop-blur-md">
-        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6">
-          <div className="flex items-center gap-3">
-            <div className="h-6 w-6 rounded-md bg-primary" />
-            <span className="text-sm font-semibold text-foreground tracking-tight">
-              Dashboard Comunidade
-            </span>
-          </div>
-          <DateRangePicker
-            from={dateFrom}
-            to={dateTo}
-            onChange={handleDateChange}
-          />
-        </div>
-      </header>
+      <NavHeader activePage="dashboard">
+        <DateRangePicker
+          from={dateFrom}
+          to={dateTo}
+          onChange={handleDateChange}
+        />
+      </NavHeader>
 
       {/* Main content */}
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
