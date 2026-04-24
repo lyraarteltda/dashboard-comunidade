@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { DonutChart } from "@tremor/react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 
@@ -13,8 +12,6 @@ const BAR_COLORS = [
   "oklch(0.72 0.19 30)",
   "oklch(0.60 0.15 330)",
 ];
-
-const TREMOR_COLORS = ["amber", "blue", "cyan", "violet", "orange", "rose"];
 
 const DIMENSIONS = [
   { key: "utm_source", label: "Source" },
@@ -34,6 +31,94 @@ interface UtmBuyersData {
 interface UtmBuyersChartProps {
   data: UtmBuyersData | null;
   loading?: boolean;
+}
+
+function CustomDonut({
+  items,
+  totalLabel,
+}: {
+  items: { value: string; count: number }[];
+  totalLabel: string;
+}) {
+  const total = items.reduce((s, d) => s + d.count, 0);
+  const cx = 100;
+  const cy = 100;
+  const r = 80;
+  const strokeWidth = 28;
+  const circumference = 2 * Math.PI * r;
+
+  let offset = 0;
+  const segments = items.map((item, i) => {
+    const pct = total > 0 ? item.count / total : 0;
+    const dashLen = pct * circumference;
+    const seg = {
+      dashArray: `${dashLen} ${circumference - dashLen}`,
+      dashOffset: -offset,
+      color: BAR_COLORS[i % BAR_COLORS.length],
+      label: item.value,
+      count: item.count,
+      pct,
+    };
+    offset += dashLen;
+    return seg;
+  });
+
+  return (
+    <div className="flex flex-col sm:flex-row items-center gap-6">
+      <div className="relative shrink-0">
+        <svg width="200" height="200" viewBox="0 0 200 200">
+          <circle
+            cx={cx}
+            cy={cy}
+            r={r}
+            fill="none"
+            stroke="oklch(0.25 0.01 260)"
+            strokeWidth={strokeWidth}
+          />
+          {segments.map((seg, i) => (
+            <circle
+              key={i}
+              cx={cx}
+              cy={cy}
+              r={r}
+              fill="none"
+              stroke={seg.color}
+              strokeWidth={strokeWidth}
+              strokeDasharray={seg.dashArray}
+              strokeDashoffset={seg.dashOffset}
+              strokeLinecap="butt"
+              transform={`rotate(-90 ${cx} ${cy})`}
+              className="transition-all duration-500"
+            />
+          ))}
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="text-sm font-semibold text-foreground">
+            {totalLabel}
+          </span>
+        </div>
+      </div>
+      <div className="flex flex-col gap-1.5 min-w-0">
+        {segments.map((seg, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <span
+              className="h-3 w-3 shrink-0 rounded-sm"
+              style={{ backgroundColor: seg.color }}
+            />
+            <span className="truncate text-xs text-muted-foreground">
+              {seg.label}
+            </span>
+            <span className="ml-auto font-mono text-xs font-semibold text-foreground tabular-nums">
+              {seg.count.toLocaleString("pt-BR")}
+            </span>
+            <span className="text-[10px] text-muted-foreground tabular-nums w-10 text-right">
+              {(seg.pct * 100).toFixed(0)}%
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export function UtmBuyersChart({ data, loading }: UtmBuyersChartProps) {
@@ -120,18 +205,9 @@ export function UtmBuyersChart({ data, loading }: UtmBuyersChartProps) {
           ))}
         </div>
       ) : (
-        <DonutChart
-          className="h-[260px]"
-          data={items.map((item) => ({
-            name: item.value,
-            value: item.count,
-          }))}
-          category="value"
-          index="name"
-          colors={TREMOR_COLORS.slice(0, Math.min(items.length, TREMOR_COLORS.length))}
-          valueFormatter={(v: number) => v.toLocaleString("pt-BR")}
-          showLabel
-          label={`${data?.totalBuyers?.toLocaleString("pt-BR") ?? 0} compras`}
+        <CustomDonut
+          items={items}
+          totalLabel={`${data?.totalBuyers?.toLocaleString("pt-BR") ?? 0} compras`}
         />
       )}
 
