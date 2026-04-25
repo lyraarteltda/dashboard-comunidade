@@ -17,6 +17,7 @@ const DIMENSIONS = [
   { key: "utm_source", label: "Source" },
   { key: "utm_medium", label: "Medium" },
   { key: "utm_campaign", label: "Campaign" },
+  { key: "utm_content", label: "Content" },
 ] as const;
 
 type DimensionKey = (typeof DIMENSIONS)[number]["key"];
