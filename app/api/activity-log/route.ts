@@ -22,7 +22,7 @@ export async function GET(request: Request) {
   const tool = searchParams.get("tool");
   const search = searchParams.get("search");
   const page = parseInt(searchParams.get("page") || "1", 10);
-  const perPage = 200;
+  const perPage = Math.min(parseInt(searchParams.get("perPage") || "200", 10), 10000);
   const offset = (page - 1) * perPage;
 
   let filters = `created_at=gte.${since}&created_at=lt.${until}`;
