@@ -123,7 +123,7 @@ function CustomDonut({
 }
 
 export function UtmBuyersChart({ data, loading }: UtmBuyersChartProps) {
-  const [dimension, setDimension] = useState<DimensionKey>("utm_source");
+  const [dimension, setDimension] = useState<DimensionKey>("utm_content");
   const [view, setView] = useState<ViewMode>("bar");
 
   if (loading) {
