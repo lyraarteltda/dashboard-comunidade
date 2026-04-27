@@ -21,7 +21,7 @@ export async function GET(request: Request) {
            AND timestamp < toDateTime('${toISO}')`
       ),
       queryHogQL(
-        `SELECT toDate(timestamp) AS day, count() AS pageviews
+        `SELECT toDate(timestamp - INTERVAL 3 HOUR) AS day, count() AS pageviews
          FROM events
          WHERE event = '$pageview'
            AND ${hostFilter}

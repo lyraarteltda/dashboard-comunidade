@@ -38,7 +38,9 @@ export async function GET(request: Request) {
 
     const byDay = new Map<string, number>();
     for (const r of rows) {
-      const d = r.created_at.slice(0, 10);
+      const dt = new Date(r.created_at);
+      dt.setUTCHours(dt.getUTCHours() - 3);
+      const d = dt.toISOString().slice(0, 10);
       byDay.set(d, (byDay.get(d) ?? 0) + 1);
     }
 

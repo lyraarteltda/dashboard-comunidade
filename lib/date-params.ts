@@ -8,8 +8,8 @@ export function parseDateRange(searchParams: URLSearchParams): DateRange {
   const toParam = searchParams.get("to");
 
   if (fromParam && toParam) {
-    const fromDate = new Date(fromParam + "T00:00:00Z");
-    const toDate = new Date(toParam + "T00:00:00Z");
+    const fromDate = new Date(fromParam + "T03:00:00Z");
+    const toDate = new Date(toParam + "T03:00:00Z");
     toDate.setUTCDate(toDate.getUTCDate() + 1);
     return {
       fromISO: fromDate.toISOString().slice(0, 19),
@@ -34,10 +34,10 @@ export function parseDateRangeForSupabase(searchParams: URLSearchParams): {
   const toParam = searchParams.get("to");
 
   if (fromParam && toParam) {
-    const toDate = new Date(toParam + "T00:00:00Z");
+    const toDate = new Date(toParam + "T03:00:00Z");
     toDate.setUTCDate(toDate.getUTCDate() + 1);
     return {
-      since: fromParam + "T00:00:00.000Z",
+      since: fromParam + "T03:00:00.000Z",
       until: toDate.toISOString(),
     };
   }

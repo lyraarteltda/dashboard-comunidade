@@ -30,7 +30,7 @@ export async function GET(request: Request) {
   try {
     const [visitorsResult, purchasesRes] = await Promise.all([
       queryHogQL(
-        `SELECT toDate(timestamp) AS day, count(DISTINCT distinct_id) AS visitors
+        `SELECT toDate(timestamp - INTERVAL 3 HOUR) AS day, count(DISTINCT distinct_id) AS visitors
          FROM events
          WHERE event = '$pageview'
            AND ${hostFilter}
