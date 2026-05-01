@@ -29,7 +29,7 @@ export async function GET(request: Request) {
 
   try {
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/comunidade_purchases?select=utm_source,utm_medium,utm_campaign,utm_content,utm_term,id&payment_status=eq.approved&purchase_date=gte.${since.slice(0, 10)}&purchase_date=lt.${until.slice(0, 10)}&limit=10000`,
+      `${SUPABASE_URL}/rest/v1/comunidade_purchases?select=utm_source,utm_medium,utm_campaign,utm_content,utm_term,id&payment_status=eq.approved&purchase_date=gte.${since}&purchase_date=lt.${until}&buyer_email=not.like.*@maestrosdaia.com&limit=10000`,
       {
         headers: {
           apikey: KEY,

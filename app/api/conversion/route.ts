@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { queryHogQL } from "@/lib/posthog-query";
-import { parseDateRange, parseDateRangeForSupabase } from "@/lib/date-params";
+import { parseDateRange, parseDateRangeForSupabase, toBRTDate } from "@/lib/date-params";
 
 export const dynamic = "force-dynamic";
 
@@ -40,7 +40,7 @@ export async function GET(request: Request) {
          ORDER BY day ASC`
       ),
       fetch(
-        `${SUPABASE_URL}/rest/v1/comunidade_purchases?select=purchase_date,payment_status&payment_status=eq.approved&purchase_date=gte.${since.slice(0, 10)}&purchase_date=lt.${until.slice(0, 10)}&order=purchase_date.asc&limit=10000`,
+        `${SUPABASE_URL}/rest/v1/comunidade_purchases?select=purchase_date,payment_status&payment_status=eq.approved&purchase_date=gte.${since}&purchase_date=lt.${until}&buyer_email=not.like.*@maestrosdaia.com&order=purchase_date.asc&limit=10000`,
         {
           headers: {
             apikey: SB_KEY,
@@ -61,7 +61,7 @@ export async function GET(request: Request) {
 
     const purchasesByDay = new Map<string, number>();
     for (const r of purchaseRows) {
-      const d = r.purchase_date.slice(0, 10);
+      const d = toBRTDate(r.purchase_date);
       purchasesByDay.set(d, (purchasesByDay.get(d) ?? 0) + 1);
     }
 
