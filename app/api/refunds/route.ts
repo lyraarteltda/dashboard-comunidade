@@ -3,8 +3,6 @@ import { parseDateRangeForSupabase, toSaoPauloDate } from "@/lib/date-params";
 
 export const dynamic = "force-dynamic";
 
-const REFUND_STATUSES = ["refunded", "chargeback", "canceled", "revoked", "chargedback"];
-
 export async function GET(request: Request) {
   const SUPABASE_URL = process.env.SUPABASE_URL;
   const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -25,10 +23,8 @@ export async function GET(request: Request) {
   };
 
   try {
-    const statusFilter = REFUND_STATUSES.map((s) => `payment_status.eq.${s}`).join(",");
-
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/comunidade_purchases?select=purchase_date,payment_status,price_reais,buyer_name,buyer_email&or=(${statusFilter})&purchase_date=gte.${since}&purchase_date=lt.${until}&order=purchase_date.asc&limit=10000`,
+      `${SUPABASE_URL}/rest/v1/comunidade_purchases?select=revoked_at,payment_status,price_reais,buyer_name,buyer_email&circle_access_revoked=eq.true&revoked_at=gte.${since}&revoked_at=lt.${until}&order=revoked_at.asc&limit=10000`,
       { headers }
     );
 
@@ -39,7 +35,7 @@ export async function GET(request: Request) {
     }
 
     const rows: {
-      purchase_date: string;
+      revoked_at: string;
       payment_status: string;
       price_reais: number | null;
       buyer_name: string;
@@ -50,7 +46,7 @@ export async function GET(request: Request) {
     let totalAmount = 0;
 
     for (const r of rows) {
-      const d = toSaoPauloDate(r.purchase_date);
+      const d = toSaoPauloDate(r.revoked_at);
       const existing = byDay.get(d) ?? { count: 0, amount: 0 };
       existing.count += 1;
       existing.amount += r.price_reais ?? 0;
@@ -67,7 +63,7 @@ export async function GET(request: Request) {
       email: r.buyer_email,
       reason: r.payment_status,
       amount: r.price_reais,
-      date: r.purchase_date,
+      date: r.revoked_at,
     }));
 
     return NextResponse.json({
