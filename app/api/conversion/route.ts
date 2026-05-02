@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { queryHogQL } from "@/lib/posthog-query";
-import { parseDateRange, parseDateRangeForSupabase, toBRTDate } from "@/lib/date-params";
+import { parseDateRange, parseDateRangeForSupabase, toSaoPauloDate } from "@/lib/date-params";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +30,7 @@ export async function GET(request: Request) {
   try {
     const [visitorsResult, purchasesRes] = await Promise.all([
       queryHogQL(
-        `SELECT toDate(timestamp - INTERVAL 3 HOUR) AS day, count(DISTINCT distinct_id) AS visitors
+        `SELECT toDate(toTimeZone(timestamp, 'America/Sao_Paulo')) AS day, count(DISTINCT distinct_id) AS visitors
          FROM events
          WHERE event = '$pageview'
            AND ${hostFilter}
@@ -61,7 +61,7 @@ export async function GET(request: Request) {
 
     const purchasesByDay = new Map<string, number>();
     for (const r of purchaseRows) {
-      const d = toBRTDate(r.purchase_date);
+      const d = toSaoPauloDate(r.purchase_date);
       purchasesByDay.set(d, (purchasesByDay.get(d) ?? 0) + 1);
     }
 

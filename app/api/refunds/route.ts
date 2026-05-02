@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { parseDateRangeForSupabase, toBRTDate } from "@/lib/date-params";
+import { parseDateRangeForSupabase, toSaoPauloDate } from "@/lib/date-params";
 
 export const dynamic = "force-dynamic";
 
@@ -50,7 +50,7 @@ export async function GET(request: Request) {
     let totalAmount = 0;
 
     for (const r of rows) {
-      const d = toBRTDate(r.purchase_date);
+      const d = toSaoPauloDate(r.purchase_date);
       const existing = byDay.get(d) ?? { count: 0, amount: 0 };
       existing.count += 1;
       existing.amount += r.price_reais ?? 0;

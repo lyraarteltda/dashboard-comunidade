@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { format, subDays } from "date-fns";
+import { subDays } from "date-fns";
 import { MetricCard } from "./metric-card";
 import { ConversionChart } from "./conversion-chart";
 import { UtmChart } from "./utm-chart";
@@ -61,7 +61,7 @@ interface RefundsData {
 }
 
 function toParam(d: Date): string {
-  return format(d, "yyyy-MM-dd");
+  return d.toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
 }
 
 export function DashboardShell() {

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { parseDateRangeForSupabase } from "@/lib/date-params";
+import { parseDateRangeForSupabase, toSaoPauloDate } from "@/lib/date-params";
 
 export const dynamic = "force-dynamic";
 
@@ -38,9 +38,7 @@ export async function GET(request: Request) {
 
     const byDay = new Map<string, number>();
     for (const r of rows) {
-      const dt = new Date(r.created_at);
-      dt.setUTCHours(dt.getUTCHours() - 3);
-      const d = dt.toISOString().slice(0, 10);
+      const d = toSaoPauloDate(r.created_at);
       byDay.set(d, (byDay.get(d) ?? 0) + 1);
     }
 
