@@ -40,7 +40,7 @@ export async function GET(request: Request) {
          ORDER BY day ASC`
       ),
       fetch(
-        `${SUPABASE_URL}/rest/v1/comunidade_purchases?select=purchase_date,payment_status&payment_status=eq.approved&purchase_date=gte.${since}&purchase_date=lt.${until}&buyer_email=not.like.*@maestrosdaia.com&order=purchase_date.asc&limit=10000`,
+        `${SUPABASE_URL}/rest/v1/comunidade_purchases?select=purchase_date,payment_status,price_reais&payment_status=eq.approved&purchase_date=gte.${since}&purchase_date=lt.${until}&buyer_email=not.like.*@maestrosdaia.com&order=purchase_date.asc&limit=10000`,
         {
           headers: {
             apikey: SB_KEY,
@@ -56,13 +56,15 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "upstream_supabase" }, { status: 502 });
     }
 
-    const purchaseRows: { purchase_date: string; payment_status: string }[] =
+    const purchaseRows: { purchase_date: string; payment_status: string; price_reais: number | null }[] =
       await purchasesRes.json();
 
     const purchasesByDay = new Map<string, number>();
+    let totalRevenue = 0;
     for (const r of purchaseRows) {
       const d = toSaoPauloDate(r.purchase_date);
       purchasesByDay.set(d, (purchasesByDay.get(d) ?? 0) + 1);
+      totalRevenue += r.price_reais ?? 0;
     }
 
     const visitorsByDay = new Map<string, number>();
@@ -111,6 +113,7 @@ export async function GET(request: Request) {
         visitors: totalVisitors,
         purchases: totalPurchases,
         conversion_pct: totalConversion,
+        totalRevenue,
       },
       from: fromISO,
       to: toISO,

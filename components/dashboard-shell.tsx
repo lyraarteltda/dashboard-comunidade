@@ -37,6 +37,7 @@ interface ConversionData {
     visitors: number;
     purchases: number;
     conversion_pct: number | null;
+    totalRevenue: number;
   };
   fetchedAt: string;
 }
@@ -207,7 +208,7 @@ export function DashboardShell() {
         )}
 
         {/* 4 metric cards: Visitas | Cadastros | Compras | Reembolsos */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <MetricCard
             title="Visitas"
             value={data?.totalVisits}
@@ -221,6 +222,11 @@ export function DashboardShell() {
           <MetricCard
             title="Compras"
             value={conversion?.totals?.purchases}
+            suffix={
+              conversion?.totals?.totalRevenue
+                ? `R$ ${conversion.totals.totalRevenue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
+                : undefined
+            }
             loading={conversionLoading}
           />
           <MetricCard
@@ -232,6 +238,20 @@ export function DashboardShell() {
                 : undefined
             }
             loading={refundsLoading}
+          />
+          <MetricCard
+            title="Taxa de Reembolso"
+            value={
+              !refundsLoading && !conversionLoading && conversion?.totals?.purchases
+                ? `${((refunds?.totalRefunds ?? 0) / conversion.totals.purchases * 100).toFixed(1)}%`
+                : refundsLoading || conversionLoading ? undefined : "0%"
+            }
+            suffix={
+              refunds && refunds.totalRefunds > 0 && conversion?.totals?.purchases
+                ? `${refunds.totalRefunds} de ${conversion.totals.purchases}`
+                : undefined
+            }
+            loading={refundsLoading || conversionLoading}
           />
         </div>
 
