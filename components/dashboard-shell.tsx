@@ -9,6 +9,7 @@ import { VisitsChart } from "./visits-chart";
 import { SignupsChart } from "./signups-chart";
 import { CtaLeaderboard } from "./cta-leaderboard";
 import { UtmBuyersChart } from "./utm-buyers-chart";
+import { RefundsChart } from "./refunds-chart";
 import { DateRangePicker } from "./date-range-picker";
 import { NavHeader } from "./nav-header";
 
@@ -51,6 +52,14 @@ interface UtmBuyersData {
   fetchedAt: string;
 }
 
+interface RefundsData {
+  totalRefunds: number;
+  totalAmount: number;
+  series: { day: string; count: number; amount: number }[];
+  recent: { name: string; email: string; reason: string; amount: number | null; date: string }[];
+  fetchedAt: string;
+}
+
 function toParam(d: Date): string {
   return format(d, "yyyy-MM-dd");
 }
@@ -64,12 +73,14 @@ export function DashboardShell() {
   const [conversion, setConversion] = useState<ConversionData | null>(null);
   const [utm, setUtm] = useState<UtmData | null>(null);
   const [utmBuyers, setUtmBuyers] = useState<UtmBuyersData | null>(null);
+  const [refunds, setRefunds] = useState<RefundsData | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [signupsLoading, setSignupsLoading] = useState(true);
   const [conversionLoading, setConversionLoading] = useState(true);
   const [utmLoading, setUtmLoading] = useState(true);
   const [utmBuyersLoading, setUtmBuyersLoading] = useState(true);
+  const [refundsLoading, setRefundsLoading] = useState(true);
   const [error, setError] = useState("");
 
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
@@ -85,6 +96,7 @@ export function DashboardShell() {
       setConversionLoading(true);
       setUtmLoading(true);
       setUtmBuyersLoading(true);
+      setRefundsLoading(true);
       setError("");
 
       const fetchMetrics = async () => {
@@ -147,7 +159,19 @@ export function DashboardShell() {
         }
       };
 
-      await Promise.all([fetchMetrics(), fetchSignups(), fetchConversion(), fetchUtm(), fetchUtmBuyers()]);
+      const fetchRefunds = async () => {
+        try {
+          const res = await fetch(`/api/refunds?${qs}`);
+          if (!res.ok) throw new Error("Falha ao carregar reembolsos");
+          setRefunds(await res.json());
+        } catch {
+          // non-blocking
+        } finally {
+          setRefundsLoading(false);
+        }
+      };
+
+      await Promise.all([fetchMetrics(), fetchSignups(), fetchConversion(), fetchUtm(), fetchUtmBuyers(), fetchRefunds()]);
     },
     []
   );
@@ -182,8 +206,8 @@ export function DashboardShell() {
           </div>
         )}
 
-        {/* 3 metric cards: Visitas | Cadastros | Compras */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        {/* 4 metric cards: Visitas | Cadastros | Compras | Reembolsos */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <MetricCard
             title="Visitas"
             value={data?.totalVisits}
@@ -198,6 +222,16 @@ export function DashboardShell() {
             title="Compras"
             value={conversion?.totals?.purchases}
             loading={conversionLoading}
+          />
+          <MetricCard
+            title="Reembolsos"
+            value={refundsLoading ? undefined : refunds?.totalRefunds ?? 0}
+            suffix={
+              refunds && refunds.totalAmount > 0
+                ? `R$ ${refunds.totalAmount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
+                : undefined
+            }
+            loading={refundsLoading}
           />
         </div>
 
@@ -232,6 +266,14 @@ export function DashboardShell() {
           <SignupsChart
             series={signups?.series || []}
             loading={signupsLoading}
+          />
+        </div>
+
+        {/* Refunds per day */}
+        <div className="mt-6">
+          <RefundsChart
+            series={refunds?.series || []}
+            loading={refundsLoading}
           />
         </div>
 
