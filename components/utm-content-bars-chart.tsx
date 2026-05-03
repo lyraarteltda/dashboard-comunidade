@@ -1,6 +1,5 @@
 "use client";
 
-import { BarList } from "@tremor/react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface UtmContentBarsChartProps {
@@ -15,17 +14,15 @@ export function UtmContentBarsChart({ data, loading }: UtmContentBarsChartProps)
         <Skeleton className="h-4 w-64 mb-6" />
         <div className="space-y-3">
           {Array.from({ length: 8 }).map((_, i) => (
-            <Skeleton key={i} className="h-6 w-full rounded-md" />
+            <Skeleton key={i} className="h-7 w-full rounded-md" />
           ))}
         </div>
       </div>
     );
   }
 
-  const items = data
-    .slice(0, 15)
-    .map((d) => ({ name: d.value, value: d.count }));
-
+  const items = data.slice(0, 15);
+  const max = items[0]?.count ?? 0;
   const total = data.reduce((s, d) => s + d.count, 0);
 
   return (
@@ -41,12 +38,27 @@ export function UtmContentBarsChart({ data, loading }: UtmContentBarsChartProps)
       {items.length === 0 ? (
         <p className="text-sm text-muted-foreground">Sem dados no período</p>
       ) : (
-        <BarList
-          data={items}
-          color="fuchsia"
-          valueFormatter={(v: number) => v.toLocaleString("pt-BR")}
-          className="[&_a]:text-foreground [&_p]:text-muted-foreground"
-        />
+        <ul className="space-y-2">
+          {items.map((it) => {
+            const pct = max > 0 ? (it.count / max) * 100 : 0;
+            return (
+              <li key={it.value} className="group flex items-center gap-3">
+                <div className="relative h-7 flex-1 overflow-hidden rounded-md bg-surface-2">
+                  <div
+                    className="absolute inset-y-0 left-0 rounded-md bg-fuchsia-500/25 transition-all group-hover:bg-fuchsia-500/35"
+                    style={{ width: `${pct}%` }}
+                  />
+                  <span className="relative z-10 flex h-full items-center px-3 text-xs font-medium text-foreground truncate">
+                    {it.value}
+                  </span>
+                </div>
+                <span className="w-12 text-right text-xs tabular-nums text-muted-foreground">
+                  {it.count.toLocaleString("pt-BR")}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
       )}
     </div>
   );
