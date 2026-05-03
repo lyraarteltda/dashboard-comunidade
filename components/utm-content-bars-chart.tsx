@@ -64,8 +64,8 @@ export function UtmContentBarsChart({ data, loading }: UtmContentBarsChartProps)
                     className="absolute inset-y-0 left-0 rounded-md transition-all"
                     style={{
                       width: `${pct}%`,
-                      backgroundColor: `rgb(${rgb} / 0.32)`,
-                      boxShadow: `inset 0 0 0 1px rgb(${rgb} / 0.45)`,
+                      backgroundColor: `rgba(${rgb}, 0.4)`,
+                      boxShadow: `inset 0 0 0 1px rgba(${rgb}, 0.65)`,
                     }}
                   />
                   <span className="relative z-10 flex h-full items-center px-3 text-xs font-medium text-foreground truncate">
