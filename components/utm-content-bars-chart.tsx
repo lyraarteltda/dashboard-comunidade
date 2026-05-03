@@ -7,6 +7,21 @@ interface UtmContentBarsChartProps {
   loading?: boolean;
 }
 
+const PALETTE: string[] = [
+  "20, 184, 166",   // teal
+  "14, 165, 233",   // sky
+  "139, 92, 246",   // violet
+  "249, 115, 22",   // orange
+  "16, 185, 129",   // emerald
+  "245, 158, 11",   // amber
+  "244, 63, 94",    // rose
+  "217, 70, 239",   // fuchsia
+  "99, 102, 241",   // indigo
+  "236, 72, 153",   // pink
+  "132, 204, 22",   // lime
+  "6, 182, 212",    // cyan
+];
+
 export function UtmContentBarsChart({ data, loading }: UtmContentBarsChartProps) {
   if (loading) {
     return (
@@ -38,15 +53,20 @@ export function UtmContentBarsChart({ data, loading }: UtmContentBarsChartProps)
       {items.length === 0 ? (
         <p className="text-sm text-muted-foreground">Sem dados no período</p>
       ) : (
-        <ul className="space-y-2">
-          {items.map((it) => {
+        <ul className="space-y-3">
+          {items.map((it, i) => {
             const pct = max > 0 ? (it.count / max) * 100 : 0;
+            const rgb = PALETTE[i % PALETTE.length];
             return (
-              <li key={it.value} className="group flex items-center gap-3">
+              <li key={it.value} className="flex items-center gap-3">
                 <div className="relative h-7 flex-1 overflow-hidden rounded-md bg-surface-2">
                   <div
-                    className="absolute inset-y-0 left-0 rounded-md bg-fuchsia-500/25 transition-all group-hover:bg-fuchsia-500/35"
-                    style={{ width: `${pct}%` }}
+                    className="absolute inset-y-0 left-0 rounded-md transition-all"
+                    style={{
+                      width: `${pct}%`,
+                      backgroundColor: `rgb(${rgb} / 0.32)`,
+                      boxShadow: `inset 0 0 0 1px rgb(${rgb} / 0.45)`,
+                    }}
                   />
                   <span className="relative z-10 flex h-full items-center px-3 text-xs font-medium text-foreground truncate">
                     {it.value}

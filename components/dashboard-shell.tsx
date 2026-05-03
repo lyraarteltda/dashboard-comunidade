@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { subDays } from "date-fns";
+import { subDays, startOfDay } from "date-fns";
 import { MetricCard } from "./metric-card";
 import { RevenueChart } from "./revenue-chart";
 import { VisitsChart } from "./visits-chart";
@@ -182,7 +182,19 @@ export function DashboardShell() {
   return (
     <div className="min-h-screen bg-surface-0">
       <NavHeader activePage="dashboard">
-        <DateRangePicker from={dateFrom} to={dateTo} onChange={handleDateChange} />
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              const now = new Date();
+              handleDateChange(startOfDay(now), now);
+            }}
+            className="h-8 rounded-md border border-border bg-surface-1 px-3 text-xs font-medium text-foreground transition-colors hover:bg-surface-2 active:bg-surface-3"
+          >
+            Hoje
+          </button>
+          <DateRangePicker from={dateFrom} to={dateTo} onChange={handleDateChange} />
+        </div>
       </NavHeader>
 
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
