@@ -9,6 +9,7 @@ interface DaySeries {
   visitors: number;
   purchases: number;
   conversion_pct: number | null;
+  revenue: number;
 }
 
 export async function GET(request: Request) {
@@ -60,11 +61,14 @@ export async function GET(request: Request) {
       await purchasesRes.json();
 
     const purchasesByDay = new Map<string, number>();
+    const revenueByDay = new Map<string, number>();
     let totalRevenue = 0;
     for (const r of purchaseRows) {
       const d = toSaoPauloDate(r.purchase_date);
       purchasesByDay.set(d, (purchasesByDay.get(d) ?? 0) + 1);
-      totalRevenue += r.price_reais ?? 0;
+      const amt = r.price_reais ?? 0;
+      revenueByDay.set(d, (revenueByDay.get(d) ?? 0) + amt);
+      totalRevenue += amt;
     }
 
     const visitorsByDay = new Map<string, number>();
@@ -99,6 +103,7 @@ export async function GET(request: Request) {
             : p > 0
               ? null
               : 0,
+        revenue: revenueByDay.get(day) ?? 0,
       });
     }
 
