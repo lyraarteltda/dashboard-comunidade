@@ -7,6 +7,7 @@ import { RevenueChart } from "./revenue-chart";
 import { VisitsChart } from "./visits-chart";
 import { ConversionRateChart } from "./conversion-rate-chart";
 import { RefundRateChart } from "./refund-rate-chart";
+import { UtmContentBarsChart } from "./utm-content-bars-chart";
 import { DateRangePicker } from "./date-range-picker";
 import { NavHeader } from "./nav-header";
 
@@ -40,6 +41,18 @@ interface RefundsData {
   fetchedAt: string;
 }
 
+interface UtmBuyersData {
+  aggregated: {
+    utm_source: { value: string; count: number }[];
+    utm_medium: { value: string; count: number }[];
+    utm_campaign: { value: string; count: number }[];
+    utm_content: { value: string; count: number }[];
+    utm_term: { value: string; count: number }[];
+  };
+  totalBuyers: number;
+  fetchedAt: string;
+}
+
 function toParam(d: Date): string {
   return d.toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
 }
@@ -51,10 +64,12 @@ export function DashboardShell() {
   const [metrics, setMetrics] = useState<MetricsData | null>(null);
   const [conversion, setConversion] = useState<ConversionData | null>(null);
   const [refunds, setRefunds] = useState<RefundsData | null>(null);
+  const [utmBuyers, setUtmBuyers] = useState<UtmBuyersData | null>(null);
 
   const [metricsLoading, setMetricsLoading] = useState(true);
   const [conversionLoading, setConversionLoading] = useState(true);
   const [refundsLoading, setRefundsLoading] = useState(true);
+  const [utmBuyersLoading, setUtmBuyersLoading] = useState(true);
   const [error, setError] = useState("");
 
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
@@ -65,6 +80,7 @@ export function DashboardShell() {
     setMetricsLoading(true);
     setConversionLoading(true);
     setRefundsLoading(true);
+    setUtmBuyersLoading(true);
     setError("");
 
     const fetchMetrics = async () => {
@@ -103,7 +119,24 @@ export function DashboardShell() {
       }
     };
 
-    await Promise.all([fetchMetrics(), fetchConversion(), fetchRefunds()]);
+    const fetchUtmBuyers = async () => {
+      try {
+        const res = await fetch(`/api/utm-buyers?${qs}`);
+        if (!res.ok) throw new Error("Falha ao carregar UTMs");
+        setUtmBuyers(await res.json());
+      } catch {
+        // non-blocking
+      } finally {
+        setUtmBuyersLoading(false);
+      }
+    };
+
+    await Promise.all([
+      fetchMetrics(),
+      fetchConversion(),
+      fetchRefunds(),
+      fetchUtmBuyers(),
+    ]);
   }, []);
 
   useEffect(() => {
@@ -207,6 +240,14 @@ export function DashboardShell() {
             purchases={purchasesSeries}
             refunds={refunds?.series || []}
             loading={refundsLoading || conversionLoading}
+          />
+        </div>
+
+        {/* ROW 3 — UTM Content (full width, horizontal bars) */}
+        <div className="mt-6">
+          <UtmContentBarsChart
+            data={utmBuyers?.aggregated.utm_content || []}
+            loading={utmBuyersLoading}
           />
         </div>
 

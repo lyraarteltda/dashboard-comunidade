@@ -2,7 +2,7 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@source inline("{dark:,}{stroke,fill,text}-{teal,sky,violet,orange,emerald,amber,rose,slate,zinc,stone,neutral}-{300,400,500,600}");
+@source inline("{dark:,}{stroke,fill,text,bg}-{teal,sky,violet,orange,fuchsia,emerald,amber,rose,slate,zinc,stone,neutral}-{300,400,500,600}");
 
 @custom-variant dark (&:is(.dark *));
 
