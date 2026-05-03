@@ -41,7 +41,7 @@ export function RevenueChart({ series, loading }: RevenueChartProps) {
           data={chartData}
           index="dia"
           categories={["Receita (R$)"]}
-          colors={["emerald"]}
+          colors={["teal"]}
           showGradient
           curveType="monotone"
           showLegend={false}

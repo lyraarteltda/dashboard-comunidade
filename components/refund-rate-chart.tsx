@@ -55,7 +55,7 @@ export function RefundRateChart({ purchases, refunds, loading }: RefundRateChart
           data={chartData}
           index="dia"
           categories={["Taxa de Reembolso (%)"]}
-          colors={["rose"]}
+          colors={["orange"]}
           showGradient
           curveType="monotone"
           showLegend={false}
@@ -71,7 +71,7 @@ export function RefundRateChart({ purchases, refunds, loading }: RefundRateChart
             return (
               <div className="rounded-lg border border-border bg-surface-2 px-3 py-2 text-xs shadow-[var(--shadow-elevation-2)]">
                 <p className="font-semibold text-foreground">{d.dia}</p>
-                <p className="mt-1 text-rose-400">
+                <p className="mt-1 text-orange-300">
                   {d["Taxa de Reembolso (%)"].toFixed(2)}%
                 </p>
                 <p className="text-muted-foreground">

@@ -9,21 +9,21 @@ import { DateRangePicker } from "./date-range-picker";
 import { NavHeader } from "./nav-header";
 
 const CATEGORY_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
-  ads:           { bg: "bg-blue-500/15",    text: "text-blue-400",    dot: "bg-blue-400" },
-  video:         { bg: "bg-purple-500/15",  text: "text-purple-400",  dot: "bg-purple-400" },
-  audio:         { bg: "bg-orange-500/15",  text: "text-orange-400",  dot: "bg-orange-400" },
-  dev:           { bg: "bg-emerald-500/15", text: "text-emerald-400", dot: "bg-emerald-400" },
-  automation:    { bg: "bg-cyan-500/15",    text: "text-cyan-400",    dot: "bg-cyan-400" },
-  communication: { bg: "bg-pink-500/15",    text: "text-pink-400",    dot: "bg-pink-400" },
-  research:      { bg: "bg-yellow-500/15",  text: "text-yellow-400",  dot: "bg-yellow-400" },
-  design:        { bg: "bg-indigo-500/15",  text: "text-indigo-400",  dot: "bg-indigo-400" },
-  other:         { bg: "bg-zinc-500/15",    text: "text-zinc-400",    dot: "bg-zinc-400" },
+  "landing-page": { bg: "bg-emerald-500/15", text: "text-emerald-400", dot: "bg-emerald-400" },
+  manychat:       { bg: "bg-cyan-500/15",    text: "text-cyan-400",    dot: "bg-cyan-400" },
+  n8n:            { bg: "bg-blue-500/15",    text: "text-blue-400",    dot: "bg-blue-400" },
+  circle:         { bg: "bg-pink-500/15",    text: "text-pink-400",    dot: "bg-pink-400" },
+  checkout:       { bg: "bg-orange-500/15",  text: "text-orange-400",  dot: "bg-orange-400" },
+  other:          { bg: "bg-zinc-500/15",    text: "text-zinc-400",    dot: "bg-zinc-400" },
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
-  ads: "Ads", video: "Vídeo", audio: "Áudio", dev: "Dev",
-  automation: "Automação", communication: "Comunicação",
-  research: "Pesquisa", design: "Design", other: "Outro",
+  "landing-page": "Landing Page",
+  manychat: "ManyChat",
+  n8n: "n8n",
+  circle: "Circle",
+  checkout: "Checkout",
+  other: "Outro",
 };
 
 interface SessionRow {

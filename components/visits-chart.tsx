@@ -41,7 +41,7 @@ export function VisitsChart({ series, loading }: VisitsChartProps) {
           data={chartData}
           index="dia"
           categories={["Visitas"]}
-          colors={["amber"]}
+          colors={["sky"]}
           showGradient
           curveType="monotone"
           showLegend={false}

@@ -48,7 +48,7 @@ export function ConversionRateChart({ series, loading }: ConversionRateChartProp
           data={chartData}
           index="dia"
           categories={["Conversão (%)"]}
-          colors={["amber"]}
+          colors={["violet"]}
           showGradient
           curveType="monotone"
           showLegend={false}
@@ -64,7 +64,7 @@ export function ConversionRateChart({ series, loading }: ConversionRateChartProp
             return (
               <div className="rounded-lg border border-border bg-surface-2 px-3 py-2 text-xs shadow-[var(--shadow-elevation-2)]">
                 <p className="font-semibold text-foreground">{d.dia}</p>
-                <p className="mt-1 text-amber-400">
+                <p className="mt-1 text-violet-300">
                   {d["Conversão (%)"].toFixed(2)}%
                 </p>
                 <p className="text-muted-foreground">
