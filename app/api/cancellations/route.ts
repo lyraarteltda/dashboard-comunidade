@@ -24,13 +24,13 @@ export async function GET(request: Request) {
 
   try {
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/refunds_comunidade?select=transaction_id,customer_name,customer_email,amount_cents,occurred_at,raw_payload&occurred_at=gte.${since}&occurred_at=lt.${until}&order=occurred_at.asc&limit=10000`,
+      `${SUPABASE_URL}/rest/v1/subscription_cancelled_comunidade?select=transaction_id,customer_name,customer_email,amount_cents,occurred_at,raw_payload&occurred_at=gte.${since}&occurred_at=lt.${until}&order=occurred_at.asc&limit=10000`,
       { headers }
     );
 
     if (!res.ok) {
       const body = await res.text();
-      console.error("Supabase refunds error:", res.status, body);
+      console.error("Supabase cancellations error:", res.status, body);
       return NextResponse.json({ error: "upstream" }, { status: 502 });
     }
 
@@ -63,7 +63,7 @@ export async function GET(request: Request) {
     const recent = rows.slice(-10).reverse().map((r) => ({
       name: r.customer_name,
       email: r.customer_email,
-      reason: "Reembolso",
+      reason: "Cancelamento",
       amount: (r.amount_cents ?? 0) / 100,
       date: r.occurred_at,
     }));
@@ -78,9 +78,9 @@ export async function GET(request: Request) {
       fetchedAt: new Date().toISOString(),
     });
   } catch (error) {
-    console.error("Refunds fetch error:", error);
+    console.error("Cancellations fetch error:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to fetch refunds" },
+      { error: error instanceof Error ? error.message : "Failed to fetch cancellations" },
       { status: 500 }
     );
   }
