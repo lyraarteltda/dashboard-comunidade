@@ -93,9 +93,11 @@ export function parseDateRangeForPurchases(searchParams: URLSearchParams): {
   const toParam = searchParams.get("to");
 
   if (fromParam && toParam) {
+    const untilDate = new Date(toParam + "T00:00:00.000Z");
+    untilDate.setUTCDate(untilDate.getUTCDate() + 1);
     return {
       since: fromParam + "T00:00:00.000Z",
-      until: toParam + "T00:00:00.000Z",
+      until: untilDate.toISOString(),
     };
   }
 
