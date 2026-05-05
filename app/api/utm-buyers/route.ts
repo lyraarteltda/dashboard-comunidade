@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { parseDateRangeForSupabase } from "@/lib/date-params";
+import { parseDateRangeForPurchases } from "@/lib/date-params";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +25,7 @@ export async function GET(request: Request) {
   }
 
   const { searchParams } = new URL(request.url);
-  const { since, until } = parseDateRangeForSupabase(searchParams);
+  const { since, until } = parseDateRangeForPurchases(searchParams);
 
   try {
     const res = await fetch(

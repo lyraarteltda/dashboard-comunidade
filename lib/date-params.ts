@@ -7,6 +7,15 @@ export function toSaoPauloDate(utcTimestamp: string): string {
 /** @deprecated Use toSaoPauloDate */
 export const toBRTDate = toSaoPauloDate;
 
+/**
+ * Onprofit webhook stores purchase_date as BRT times in a timestamptz column
+ * (Supabase labels them +00:00 but they are actually BRT). Extracting the date
+ * portion directly gives the correct BRT calendar day without double-shifting.
+ */
+export function extractPurchaseDate(storedTimestamp: string): string {
+  return storedTimestamp.slice(0, 10);
+}
+
 function todayInSaoPaulo(): string {
   return new Date().toLocaleDateString("sv-SE", { timeZone: TZ });
 }
@@ -72,6 +81,33 @@ export function parseDateRangeForSupabase(searchParams: URLSearchParams): {
   until.setUTCDate(until.getUTCDate() + 1);
   return {
     since: since.toISOString(),
+    until: until.toISOString(),
+  };
+}
+
+export function parseDateRangeForPurchases(searchParams: URLSearchParams): {
+  since: string;
+  until: string;
+} {
+  const fromParam = searchParams.get("from");
+  const toParam = searchParams.get("to");
+
+  if (fromParam && toParam) {
+    return {
+      since: fromParam + "T00:00:00.000Z",
+      until: toParam + "T00:00:00.000Z",
+    };
+  }
+
+  const range = searchParams.get("range") || "7";
+  const days = parseInt(range, 10) || 7;
+  const today = todayInSaoPaulo();
+  const from = new Date(today + "T00:00:00.000Z");
+  from.setUTCDate(from.getUTCDate() - days);
+  const until = new Date(today + "T00:00:00.000Z");
+  until.setUTCDate(until.getUTCDate() + 1);
+  return {
+    since: from.toISOString(),
     until: until.toISOString(),
   };
 }

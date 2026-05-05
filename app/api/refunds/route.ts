@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { parseDateRangeForSupabase, toSaoPauloDate } from "@/lib/date-params";
+import { parseDateRangeForPurchases, extractPurchaseDate } from "@/lib/date-params";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +15,7 @@ export async function GET(request: Request) {
   }
 
   const { searchParams } = new URL(request.url);
-  const { since, until } = parseDateRangeForSupabase(searchParams);
+  const { since, until } = parseDateRangeForPurchases(searchParams);
 
   const headers = {
     apikey: KEY,
@@ -46,7 +46,7 @@ export async function GET(request: Request) {
     let totalAmount = 0;
 
     for (const r of rows) {
-      const d = toSaoPauloDate(r.revoked_at);
+      const d = extractPurchaseDate(r.revoked_at);
       const existing = byDay.get(d) ?? { count: 0, amount: 0 };
       existing.count += 1;
       existing.amount += r.price_reais ?? 0;

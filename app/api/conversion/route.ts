@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { queryHogQL } from "@/lib/posthog-query";
-import { parseDateRange, parseDateRangeForSupabase, toSaoPauloDate } from "@/lib/date-params";
+import { parseDateRange, parseDateRangeForPurchases, extractPurchaseDate } from "@/lib/date-params";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +25,7 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const { fromISO, toISO } = parseDateRange(searchParams);
-  const { since, until } = parseDateRangeForSupabase(searchParams);
+  const { since, until } = parseDateRangeForPurchases(searchParams);
   const hostFilter = `properties.$host = 'comunidade.maestrosdaia.com'`;
 
   try {
@@ -64,7 +64,7 @@ export async function GET(request: Request) {
     const revenueByDay = new Map<string, number>();
     let totalRevenue = 0;
     for (const r of purchaseRows) {
-      const d = toSaoPauloDate(r.purchase_date);
+      const d = extractPurchaseDate(r.purchase_date);
       purchasesByDay.set(d, (purchasesByDay.get(d) ?? 0) + 1);
       const amt = r.price_reais ?? 0;
       revenueByDay.set(d, (revenueByDay.get(d) ?? 0) + amt);
