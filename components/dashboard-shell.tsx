@@ -10,6 +10,7 @@ import { RefundRateChart } from "./refund-rate-chart";
 import { UtmContentBarsChart } from "./utm-content-bars-chart";
 import { DateRangePicker } from "./date-range-picker";
 import { NavHeader } from "./nav-header";
+import { YouTubeMetrics } from "./youtube-metrics";
 
 interface MetricsData {
   totalVisits: number;
@@ -41,6 +42,32 @@ interface RefundsData {
   fetchedAt: string;
 }
 
+interface YouTubeData {
+  videos: {
+    video_id: string;
+    title: string;
+    views: number;
+    likes: number;
+    comments: number;
+    shares: number;
+    avg_view_duration_seconds: number;
+    avg_view_percentage: number;
+    estimated_minutes_watched: number;
+    subscribers_gained: number;
+    published_at: string;
+    snapshot_date: string;
+    thumbnail_url: string;
+  }[];
+  totals: {
+    total_views: number;
+    total_likes: number;
+    total_comments: number;
+    total_videos: number;
+  };
+  snapshot_date: string | null;
+  fetchedAt: string;
+}
+
 interface UtmBuyersData {
   aggregated: {
     utm_source: { value: string; count: number }[];
@@ -66,10 +93,13 @@ export function DashboardShell() {
   const [refunds, setRefunds] = useState<RefundsData | null>(null);
   const [utmBuyers, setUtmBuyers] = useState<UtmBuyersData | null>(null);
 
+  const [youtube, setYoutube] = useState<YouTubeData | null>(null);
+
   const [metricsLoading, setMetricsLoading] = useState(true);
   const [conversionLoading, setConversionLoading] = useState(true);
   const [refundsLoading, setRefundsLoading] = useState(true);
   const [utmBuyersLoading, setUtmBuyersLoading] = useState(true);
+  const [youtubeLoading, setYoutubeLoading] = useState(true);
   const [error, setError] = useState("");
 
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
@@ -81,6 +111,7 @@ export function DashboardShell() {
     setConversionLoading(true);
     setRefundsLoading(true);
     setUtmBuyersLoading(true);
+    setYoutubeLoading(true);
     setError("");
 
     const fetchMetrics = async () => {
@@ -131,11 +162,24 @@ export function DashboardShell() {
       }
     };
 
+    const fetchYoutube = async () => {
+      try {
+        const res = await fetch("/api/youtube");
+        if (!res.ok) throw new Error("Falha ao carregar YouTube");
+        setYoutube(await res.json());
+      } catch {
+        // non-blocking
+      } finally {
+        setYoutubeLoading(false);
+      }
+    };
+
     await Promise.all([
       fetchMetrics(),
       fetchConversion(),
       fetchRefunds(),
       fetchUtmBuyers(),
+      fetchYoutube(),
     ]);
   }, []);
 
@@ -261,6 +305,11 @@ export function DashboardShell() {
             data={utmBuyers?.aggregated.utm_content || []}
             loading={utmBuyersLoading}
           />
+        </div>
+
+        {/* ROW 4 — YouTube Metrics */}
+        <div className="mt-6">
+          <YouTubeMetrics data={youtube} loading={youtubeLoading} />
         </div>
 
         {metrics?.fetchedAt && (
