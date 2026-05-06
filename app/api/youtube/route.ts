@@ -42,16 +42,28 @@ export async function GET() {
     }
 
     const latestSnapshot = snapshotRows[0].snapshot_date;
+    const baseFilter = `snapshot_date=eq.${latestSnapshot}&duration_seconds=gt.60`;
 
-    const videosRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/YouTube-views-comments-likes?select=video_id,title,views,likes,comments,shares,avg_view_duration_seconds,avg_view_percentage,estimated_minutes_watched,subscribers_gained,published_at,snapshot_date,thumbnail_url&snapshot_date=eq.${latestSnapshot}&order=views.desc&limit=20`,
-      {
-        headers: {
-          apikey: SB_KEY,
-          Authorization: `Bearer ${SB_KEY}`,
-        },
-      }
-    );
+    const [videosRes, allRes] = await Promise.all([
+      fetch(
+        `${SUPABASE_URL}/rest/v1/YouTube-views-comments-likes?select=video_id,title,views,likes,comments,shares,avg_view_duration_seconds,avg_view_percentage,estimated_minutes_watched,subscribers_gained,published_at,snapshot_date,thumbnail_url,duration_seconds&${baseFilter}&order=views.desc&limit=20`,
+        {
+          headers: {
+            apikey: SB_KEY,
+            Authorization: `Bearer ${SB_KEY}`,
+          },
+        }
+      ),
+      fetch(
+        `${SUPABASE_URL}/rest/v1/YouTube-views-comments-likes?select=views,likes,comments&${baseFilter}`,
+        {
+          headers: {
+            apikey: SB_KEY,
+            Authorization: `Bearer ${SB_KEY}`,
+          },
+        }
+      ),
+    ]);
 
     if (!videosRes.ok) {
       const body = await videosRes.text();
@@ -59,27 +71,14 @@ export async function GET() {
       return NextResponse.json({ error: "upstream_supabase" }, { status: 502 });
     }
 
-    const videos: {
-      video_id: string;
-      title: string;
-      views: number;
-      likes: number;
-      comments: number;
-      shares: number;
-      avg_view_duration_seconds: number;
-      avg_view_percentage: number;
-      estimated_minutes_watched: number;
-      subscribers_gained: number;
-      published_at: string;
-      snapshot_date: string;
-      thumbnail_url: string;
-    }[] = await videosRes.json();
+    const videos = await videosRes.json();
+    const allVideos = allRes.ok ? await allRes.json() : videos;
 
     let total_views = 0;
     let total_likes = 0;
     let total_comments = 0;
 
-    for (const v of videos) {
+    for (const v of allVideos) {
       total_views += v.views ?? 0;
       total_likes += v.likes ?? 0;
       total_comments += v.comments ?? 0;
@@ -91,7 +90,7 @@ export async function GET() {
         total_views,
         total_likes,
         total_comments,
-        total_videos: videos.length,
+        total_videos: allVideos.length,
       },
       snapshot_date: latestSnapshot,
       fetchedAt: new Date().toISOString(),
