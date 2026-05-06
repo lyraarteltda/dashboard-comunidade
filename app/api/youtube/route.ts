@@ -42,7 +42,7 @@ export async function GET() {
     }
 
     const latestSnapshot = snapshotRows[0].snapshot_date;
-    const baseFilter = `snapshot_date=eq.${latestSnapshot}&duration_seconds=gt.60`;
+    const baseFilter = `snapshot_date=eq.${latestSnapshot}&duration_seconds=gt.180`;
 
     const [videosRes, allRes] = await Promise.all([
       fetch(
