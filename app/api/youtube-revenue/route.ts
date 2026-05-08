@@ -79,11 +79,11 @@ export async function GET(request: Request) {
     const purchases: PurchaseRow[] = await purchasesRes.json();
     const allTimePurchases: PurchaseRow[] = await allTimePurchasesRes.json();
 
-    const ytUtmTags = new Set(videos.map((v) => v.video_utm_content));
+    const ytUtmTags = new Set(videos.map((v) => v.video_utm_content.trim().toLowerCase()));
 
     const purchasesByUtm: Record<string, { sales: number; revenue: number }> = {};
     for (const p of purchases) {
-      const tag = p.utm_content?.trim();
+      const tag = p.utm_content?.trim().toLowerCase();
       if (!tag || !ytUtmTags.has(tag)) continue;
       if (!purchasesByUtm[tag]) purchasesByUtm[tag] = { sales: 0, revenue: 0 };
       purchasesByUtm[tag].sales += 1;
@@ -92,7 +92,7 @@ export async function GET(request: Request) {
 
     const allTimeByUtm: Record<string, { sales: number; revenue: number }> = {};
     for (const p of allTimePurchases) {
-      const tag = p.utm_content?.trim();
+      const tag = p.utm_content?.trim().toLowerCase();
       if (!tag || !ytUtmTags.has(tag)) continue;
       if (!allTimeByUtm[tag]) allTimeByUtm[tag] = { sales: 0, revenue: 0 };
       allTimeByUtm[tag].sales += 1;
@@ -117,14 +117,15 @@ export async function GET(request: Request) {
     const poolVideos: YouTubeRow[] = [];
 
     for (const v of videos) {
-      if (v.video_utm_content === GENERIC_TAG) {
+      const normalizedUtm = v.video_utm_content.trim().toLowerCase();
+      if (normalizedUtm === GENERIC_TAG) {
         poolVideos.push(v);
       } else {
-        const stats = purchasesByUtm[v.video_utm_content] || {
+        const stats = purchasesByUtm[normalizedUtm] || {
           sales: 0,
           revenue: 0,
         };
-        const allTime = allTimeByUtm[v.video_utm_content] || {
+        const allTime = allTimeByUtm[normalizedUtm] || {
           sales: 0,
           revenue: 0,
         };
