@@ -56,7 +56,7 @@ export async function GET(request: Request) {
     }
     const latestSnapshot = snapshotRows[0].snapshot_date;
 
-    const [videosRes, purchasesRes] = await Promise.all([
+    const [videosRes, purchasesRes, allTimePurchasesRes] = await Promise.all([
       fetch(
         `${SUPABASE_URL}/rest/v1/YouTube-views-comments-likes?select=video_id,title,views,likes,thumbnail_url,published_at,video_utm_content,snapshot_date&snapshot_date=eq.${latestSnapshot}&duration_seconds=gt.180&video_utm_content=not.is.null&order=views.desc&limit=200`,
         { headers }
@@ -65,14 +65,19 @@ export async function GET(request: Request) {
         `${SUPABASE_URL}/rest/v1/comunidade_purchases?select=utm_content,price_reais&payment_status=eq.approved&utm_content=not.is.null&purchase_date=gte.${since}&purchase_date=lt.${until}&buyer_email=not.like.*@maestrosdaia.com&limit=10000`,
         { headers }
       ),
+      fetch(
+        `${SUPABASE_URL}/rest/v1/comunidade_purchases?select=utm_content,price_reais&payment_status=eq.approved&utm_content=not.is.null&buyer_email=not.like.*@maestrosdaia.com&limit=10000`,
+        { headers }
+      ),
     ]);
 
-    if (!videosRes.ok || !purchasesRes.ok) {
+    if (!videosRes.ok || !purchasesRes.ok || !allTimePurchasesRes.ok) {
       return NextResponse.json({ error: "upstream" }, { status: 502 });
     }
 
     const videos: YouTubeRow[] = await videosRes.json();
     const purchases: PurchaseRow[] = await purchasesRes.json();
+    const allTimePurchases: PurchaseRow[] = await allTimePurchasesRes.json();
 
     const ytUtmTags = new Set(videos.map((v) => v.video_utm_content));
 
@@ -85,6 +90,15 @@ export async function GET(request: Request) {
       purchasesByUtm[tag].revenue += p.price_reais ?? 0;
     }
 
+    const allTimeByUtm: Record<string, { sales: number; revenue: number }> = {};
+    for (const p of allTimePurchases) {
+      const tag = p.utm_content?.trim();
+      if (!tag || !ytUtmTags.has(tag)) continue;
+      if (!allTimeByUtm[tag]) allTimeByUtm[tag] = { sales: 0, revenue: 0 };
+      allTimeByUtm[tag].sales += 1;
+      allTimeByUtm[tag].revenue += p.price_reais ?? 0;
+    }
+
     const uniqueVideos: {
       videoId: string;
       title: string;
@@ -95,6 +109,8 @@ export async function GET(request: Request) {
       utmTag: string;
       sales: number;
       revenue: number;
+      allTimeRevenue: number;
+      allTimeSales: number;
       rpm: number;
     }[] = [];
 
@@ -108,6 +124,10 @@ export async function GET(request: Request) {
           sales: 0,
           revenue: 0,
         };
+        const allTime = allTimeByUtm[v.video_utm_content] || {
+          sales: 0,
+          revenue: 0,
+        };
         uniqueVideos.push({
           videoId: v.video_id,
           title: v.title,
@@ -118,7 +138,9 @@ export async function GET(request: Request) {
           utmTag: v.video_utm_content,
           sales: stats.sales,
           revenue: stats.revenue,
-          rpm: v.views > 0 ? (stats.revenue / v.views) * 1000 : 0,
+          allTimeRevenue: allTime.revenue,
+          allTimeSales: allTime.sales,
+          rpm: v.views > 0 ? (allTime.revenue / v.views) * 1000 : 0,
         });
       }
     }
@@ -126,6 +148,7 @@ export async function GET(request: Request) {
     uniqueVideos.sort((a, b) => b.revenue - a.revenue);
 
     const poolStats = purchasesByUtm[GENERIC_TAG] || { sales: 0, revenue: 0 };
+    const poolAllTime = allTimeByUtm[GENERIC_TAG] || { sales: 0, revenue: 0 };
     const poolTotalViews = poolVideos.reduce((s, v) => s + (v.views ?? 0), 0);
     const pool = poolVideos.length > 0
       ? {
@@ -134,7 +157,9 @@ export async function GET(request: Request) {
           totalViews: poolTotalViews,
           totalSales: poolStats.sales,
           totalRevenue: poolStats.revenue,
-          rpm: poolTotalViews > 0 ? (poolStats.revenue / poolTotalViews) * 1000 : 0,
+          allTimeSales: poolAllTime.sales,
+          allTimeRevenue: poolAllTime.revenue,
+          rpm: poolTotalViews > 0 ? (poolAllTime.revenue / poolTotalViews) * 1000 : 0,
         }
       : null;
 
@@ -147,7 +172,10 @@ export async function GET(request: Request) {
     const totalViews =
       uniqueVideos.reduce((s, v) => s + v.views, 0) +
       (pool?.totalViews ?? 0);
-    const avgRpm = totalViews > 0 ? (totalRevenue / totalViews) * 1000 : 0;
+    const totalAllTimeRevenue =
+      uniqueVideos.reduce((s, v) => s + v.allTimeRevenue, 0) +
+      (pool?.allTimeRevenue ?? 0);
+    const avgRpm = totalViews > 0 ? (totalAllTimeRevenue / totalViews) * 1000 : 0;
 
     return NextResponse.json({
       videos: uniqueVideos,

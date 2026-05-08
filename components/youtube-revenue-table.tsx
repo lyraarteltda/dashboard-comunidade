@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useMemo } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MetricCard } from "./metric-card";
 
@@ -13,6 +14,8 @@ interface VideoRevenue {
   utmTag: string;
   sales: number;
   revenue: number;
+  allTimeRevenue: number;
+  allTimeSales: number;
   rpm: number;
 }
 
@@ -22,6 +25,8 @@ interface PoolData {
   totalViews: number;
   totalSales: number;
   totalRevenue: number;
+  allTimeSales: number;
+  allTimeRevenue: number;
   rpm: number;
 }
 
@@ -37,6 +42,9 @@ interface YouTubeRevenueTableProps {
   data: YouTubeRevenueData | null;
   loading?: boolean;
 }
+
+type SortColumn = "title" | "views" | "sales" | "revenue" | "rpm";
+type SortDirection = "desc" | "asc";
 
 function fmtBRL(value: number): string {
   return `R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -60,7 +68,39 @@ function formatDate(iso: string): string {
   }
 }
 
+function SortArrow({ column, sortColumn, sortDirection }: { column: SortColumn; sortColumn: SortColumn; sortDirection: SortDirection }) {
+  if (column !== sortColumn) return null;
+  return <span className="ml-1">{sortDirection === "desc" ? "▼" : "▲"}</span>;
+}
+
 export function YouTubeRevenueTable({ data, loading }: YouTubeRevenueTableProps) {
+  const [sortColumn, setSortColumn] = useState<SortColumn>("revenue");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+
+  const handleSort = (column: SortColumn) => {
+    if (sortColumn === column) {
+      setSortDirection((d) => (d === "desc" ? "asc" : "desc"));
+    } else {
+      setSortColumn(column);
+      setSortDirection("desc");
+    }
+  };
+
+  const sortedVideos = useMemo(() => {
+    if (!data) return [];
+    const sorted = [...data.videos];
+    sorted.sort((a, b) => {
+      let cmp: number;
+      if (sortColumn === "title") {
+        cmp = a.title.localeCompare(b.title, "pt-BR");
+      } else {
+        cmp = a[sortColumn] - b[sortColumn];
+      }
+      return sortDirection === "desc" ? -cmp : cmp;
+    });
+    return sorted;
+  }, [data, sortColumn, sortDirection]);
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -86,6 +126,8 @@ export function YouTubeRevenueTable({ data, loading }: YouTubeRevenueTableProps)
   }
 
   const hasData = data && (data.videos.length > 0 || data.pool);
+
+  const thBase = "px-4 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground cursor-pointer select-none transition-colors hover:text-foreground";
 
   return (
     <div className="space-y-4">
@@ -126,25 +168,25 @@ export function YouTubeRevenueTable({ data, loading }: YouTubeRevenueTableProps)
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-surface-1">
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                      Vídeo
+                    <th className={`${thBase} text-left`} onClick={() => handleSort("title")}>
+                      Vídeo<SortArrow column="title" sortColumn={sortColumn} sortDirection={sortDirection} />
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                      Views
+                    <th className={`${thBase} text-right`} onClick={() => handleSort("views")}>
+                      Views<SortArrow column="views" sortColumn={sortColumn} sortDirection={sortDirection} />
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                      Vendas
+                    <th className={`${thBase} text-right`} onClick={() => handleSort("sales")}>
+                      Vendas<SortArrow column="sales" sortColumn={sortColumn} sortDirection={sortDirection} />
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                      Receita
+                    <th className={`${thBase} text-right`} onClick={() => handleSort("revenue")}>
+                      Receita<SortArrow column="revenue" sortColumn={sortColumn} sortDirection={sortDirection} />
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                      RPM
+                    <th className={`${thBase} text-right`} onClick={() => handleSort("rpm")}>
+                      RPM<SortArrow column="rpm" sortColumn={sortColumn} sortDirection={sortDirection} />
                     </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {data!.videos.map((video) => (
+                  {sortedVideos.map((video) => (
                     <tr
                       key={video.videoId}
                       className="transition-colors hover:bg-surface-2/50"
