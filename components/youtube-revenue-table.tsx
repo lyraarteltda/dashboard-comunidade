@@ -43,7 +43,7 @@ interface YouTubeRevenueTableProps {
   loading?: boolean;
 }
 
-type SortColumn = "title" | "views" | "sales" | "revenue" | "rpm";
+type SortColumn = "title" | "views" | "sales" | "revenue" | "rpm" | "publishedAt" | "viewsPerDay" | "viewsPerHour";
 type SortDirection = "desc" | "asc";
 
 function fmtBRL(value: number): string {
@@ -66,6 +66,14 @@ function formatDate(iso: string): string {
   } catch {
     return iso;
   }
+}
+
+function computeRates(publishedAt: string | null, views: number) {
+  if (!publishedAt) return { days: 0, hours: 0, vpd: 0, vph: 0 };
+  const ms = Date.now() - new Date(publishedAt).getTime();
+  const days = Math.max(1, Math.floor(ms / 86400000));
+  const hours = Math.max(1, Math.floor(ms / 3600000));
+  return { days, hours, vpd: Math.round(views / days), vph: Math.round(views / hours) };
 }
 
 function SortArrow({ column, sortColumn, sortDirection }: { column: SortColumn; sortColumn: SortColumn; sortDirection: SortDirection }) {
@@ -93,6 +101,14 @@ export function YouTubeRevenueTable({ data, loading }: YouTubeRevenueTableProps)
       let cmp: number;
       if (sortColumn === "title") {
         cmp = a.title.localeCompare(b.title, "pt-BR");
+      } else if (sortColumn === "publishedAt") {
+        const ta = a.publishedAt ? new Date(a.publishedAt).getTime() : -Infinity;
+        const tb = b.publishedAt ? new Date(b.publishedAt).getTime() : -Infinity;
+        cmp = ta - tb;
+      } else if (sortColumn === "viewsPerDay") {
+        cmp = computeRates(a.publishedAt, a.views).vpd - computeRates(b.publishedAt, b.views).vpd;
+      } else if (sortColumn === "viewsPerHour") {
+        cmp = computeRates(a.publishedAt, a.views).vph - computeRates(b.publishedAt, b.views).vph;
       } else {
         cmp = a[sortColumn] - b[sortColumn];
       }
@@ -183,6 +199,15 @@ export function YouTubeRevenueTable({ data, loading }: YouTubeRevenueTableProps)
                     <th className={`${thBase} text-right`} onClick={() => handleSort("rpm")}>
                       RPM<SortArrow column="rpm" sortColumn={sortColumn} sortDirection={sortDirection} />
                     </th>
+                    <th className={`${thBase} text-right hidden md:table-cell`} onClick={() => handleSort("publishedAt")}>
+                      Publicado<SortArrow column="publishedAt" sortColumn={sortColumn} sortDirection={sortDirection} />
+                    </th>
+                    <th className={`${thBase} text-right`} onClick={() => handleSort("viewsPerDay")}>
+                      Views/Dia<SortArrow column="viewsPerDay" sortColumn={sortColumn} sortDirection={sortDirection} />
+                    </th>
+                    <th className={`${thBase} text-right`} onClick={() => handleSort("viewsPerHour")}>
+                      Views/Hora<SortArrow column="viewsPerHour" sortColumn={sortColumn} sortDirection={sortDirection} />
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -222,6 +247,22 @@ export function YouTubeRevenueTable({ data, loading }: YouTubeRevenueTableProps)
                       <td className={`px-4 py-3 text-right font-mono tabular-nums ${rpmColor(video.rpm)}`}>
                         {fmtBRL(video.rpm)}
                       </td>
+                      <td className="px-4 py-3 text-right font-mono tabular-nums text-muted-foreground hidden md:table-cell">
+                        {video.publishedAt ? formatDate(video.publishedAt) : "—"}
+                      </td>
+                      {(() => {
+                        const rates = computeRates(video.publishedAt, video.views);
+                        return (
+                          <>
+                            <td className="px-4 py-3 text-right font-mono tabular-nums text-muted-foreground">
+                              {video.publishedAt ? rates.vpd.toLocaleString("pt-BR") : "—"}
+                            </td>
+                            <td className="px-4 py-3 text-right font-mono tabular-nums text-muted-foreground">
+                              {video.publishedAt ? rates.vph.toLocaleString("pt-BR") : "—"}
+                            </td>
+                          </>
+                        );
+                      })()}
                     </tr>
                   ))}
 
@@ -252,6 +293,9 @@ export function YouTubeRevenueTable({ data, loading }: YouTubeRevenueTableProps)
                       <td className={`px-4 py-3 text-right font-mono tabular-nums ${rpmColor(data!.pool.rpm)} opacity-70`}>
                         {fmtBRL(data!.pool.rpm)}
                       </td>
+                      <td className="px-4 py-3 text-right font-mono tabular-nums text-muted-foreground hidden md:table-cell">—</td>
+                      <td className="px-4 py-3 text-right font-mono tabular-nums text-muted-foreground">—</td>
+                      <td className="px-4 py-3 text-right font-mono tabular-nums text-muted-foreground">—</td>
                     </tr>
                   )}
                 </tbody>
