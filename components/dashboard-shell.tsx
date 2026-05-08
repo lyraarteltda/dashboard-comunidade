@@ -11,6 +11,7 @@ import { UtmContentBarsChart } from "./utm-content-bars-chart";
 import { DateRangePicker } from "./date-range-picker";
 import { NavHeader } from "./nav-header";
 import { YouTubeMetrics } from "./youtube-metrics";
+import { YouTubeRevenueTable, type YouTubeRevenueData } from "./youtube-revenue-table";
 
 interface MetricsData {
   totalVisits: number;
@@ -94,12 +95,14 @@ export function DashboardShell() {
   const [utmBuyers, setUtmBuyers] = useState<UtmBuyersData | null>(null);
 
   const [youtube, setYoutube] = useState<YouTubeData | null>(null);
+  const [youtubeRevenue, setYoutubeRevenue] = useState<YouTubeRevenueData | null>(null);
 
   const [metricsLoading, setMetricsLoading] = useState(true);
   const [conversionLoading, setConversionLoading] = useState(true);
   const [refundsLoading, setRefundsLoading] = useState(true);
   const [utmBuyersLoading, setUtmBuyersLoading] = useState(true);
   const [youtubeLoading, setYoutubeLoading] = useState(true);
+  const [youtubeRevenueLoading, setYoutubeRevenueLoading] = useState(true);
   const [error, setError] = useState("");
 
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
@@ -112,6 +115,7 @@ export function DashboardShell() {
     setRefundsLoading(true);
     setUtmBuyersLoading(true);
     setYoutubeLoading(true);
+    setYoutubeRevenueLoading(true);
     setError("");
 
     const fetchMetrics = async () => {
@@ -174,12 +178,25 @@ export function DashboardShell() {
       }
     };
 
+    const fetchYoutubeRevenue = async () => {
+      try {
+        const res = await fetch(`/api/youtube-revenue?${qs}`);
+        if (!res.ok) throw new Error("Falha ao carregar receita YouTube");
+        setYoutubeRevenue(await res.json());
+      } catch {
+        // non-blocking
+      } finally {
+        setYoutubeRevenueLoading(false);
+      }
+    };
+
     await Promise.all([
       fetchMetrics(),
       fetchConversion(),
       fetchRefunds(),
       fetchUtmBuyers(),
       fetchYoutube(),
+      fetchYoutubeRevenue(),
     ]);
   }, []);
 
@@ -305,6 +322,11 @@ export function DashboardShell() {
             data={utmBuyers?.aggregated.utm_content || []}
             loading={utmBuyersLoading}
           />
+        </div>
+
+        {/* ROW 3.5 — YouTube Revenue Per Video */}
+        <div className="mt-6">
+          <YouTubeRevenueTable data={youtubeRevenue} loading={youtubeRevenueLoading} />
         </div>
 
         {/* ROW 4 — YouTube Metrics */}
