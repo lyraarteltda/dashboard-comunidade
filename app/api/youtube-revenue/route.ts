@@ -3,7 +3,7 @@ import { parseDateRangeForPurchases } from "@/lib/date-params";
 
 export const dynamic = "force-dynamic";
 
-const GENERIC_TAG = "youtubedescription";
+const POOL_TAGS = new Set(["youtubedescription", "youtubebio", "youtubepin"]);
 
 interface YouTubeRow {
   video_id: string;
@@ -80,6 +80,7 @@ export async function GET(request: Request) {
     const allTimePurchases: PurchaseRow[] = await allTimePurchasesRes.json();
 
     const ytUtmTags = new Set(videos.map((v) => v.video_utm_content.trim().toLowerCase()));
+    for (const pt of POOL_TAGS) ytUtmTags.add(pt);
 
     const purchasesByUtm: Record<string, { sales: number; revenue: number }> = {};
     for (const p of purchases) {
@@ -118,7 +119,7 @@ export async function GET(request: Request) {
 
     for (const v of videos) {
       const normalizedUtm = v.video_utm_content.trim().toLowerCase();
-      if (normalizedUtm === GENERIC_TAG) {
+      if (POOL_TAGS.has(normalizedUtm)) {
         poolVideos.push(v);
       } else {
         const stats = purchasesByUtm[normalizedUtm] || {
@@ -148,12 +149,20 @@ export async function GET(request: Request) {
 
     uniqueVideos.sort((a, b) => b.revenue - a.revenue);
 
-    const poolStats = purchasesByUtm[GENERIC_TAG] || { sales: 0, revenue: 0 };
-    const poolAllTime = allTimeByUtm[GENERIC_TAG] || { sales: 0, revenue: 0 };
+    const poolStats = { sales: 0, revenue: 0 };
+    for (const tag of POOL_TAGS) {
+      const s = purchasesByUtm[tag];
+      if (s) { poolStats.sales += s.sales; poolStats.revenue += s.revenue; }
+    }
+    const poolAllTime = { sales: 0, revenue: 0 };
+    for (const tag of POOL_TAGS) {
+      const s = allTimeByUtm[tag];
+      if (s) { poolAllTime.sales += s.sales; poolAllTime.revenue += s.revenue; }
+    }
     const poolTotalViews = poolVideos.reduce((s, v) => s + (v.views ?? 0), 0);
     const pool = poolVideos.length > 0
       ? {
-          tag: GENERIC_TAG,
+          tag: "youtube-pool",
           videoCount: poolVideos.length,
           totalViews: poolTotalViews,
           totalSales: poolStats.sales,
