@@ -112,7 +112,12 @@ export function DateRangePicker({ from, to, onChange }: DateRangePickerProps) {
   }
 
   function handleSelect(range: DateRange | undefined) {
-    if (!range?.from) return;
+    if (!range?.from) {
+      if (rangeStart) {
+        applyRange(rangeStart, rangeStart);
+      }
+      return;
+    }
 
     if (!rangeStart) {
       setRangeStart(range.from);
