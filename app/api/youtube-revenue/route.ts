@@ -5,6 +5,10 @@ export const dynamic = "force-dynamic";
 
 const POOL_TAGS = new Set(["youtubedescription", "youtubebio", "youtubepin"]);
 
+const UTM_ALIASES: Record<string, string> = {
+  "negocio-ia-perfeito": "negocio-uma-pessoa-ia",
+};
+
 interface YouTubeRow {
   video_id: string;
   title: string;
@@ -85,19 +89,23 @@ export async function GET(request: Request) {
     const purchasesByUtm: Record<string, { sales: number; revenue: number }> = {};
     for (const p of purchases) {
       const tag = p.utm_content?.trim().toLowerCase();
-      if (!tag || !ytUtmTags.has(tag)) continue;
-      if (!purchasesByUtm[tag]) purchasesByUtm[tag] = { sales: 0, revenue: 0 };
-      purchasesByUtm[tag].sales += 1;
-      purchasesByUtm[tag].revenue += p.price_reais ?? 0;
+      if (!tag) continue;
+      const normalizedTag = UTM_ALIASES[tag] || tag;
+      if (!ytUtmTags.has(normalizedTag)) continue;
+      if (!purchasesByUtm[normalizedTag]) purchasesByUtm[normalizedTag] = { sales: 0, revenue: 0 };
+      purchasesByUtm[normalizedTag].sales += 1;
+      purchasesByUtm[normalizedTag].revenue += p.price_reais ?? 0;
     }
 
     const allTimeByUtm: Record<string, { sales: number; revenue: number }> = {};
     for (const p of allTimePurchases) {
       const tag = p.utm_content?.trim().toLowerCase();
-      if (!tag || !ytUtmTags.has(tag)) continue;
-      if (!allTimeByUtm[tag]) allTimeByUtm[tag] = { sales: 0, revenue: 0 };
-      allTimeByUtm[tag].sales += 1;
-      allTimeByUtm[tag].revenue += p.price_reais ?? 0;
+      if (!tag) continue;
+      const normalizedTag = UTM_ALIASES[tag] || tag;
+      if (!ytUtmTags.has(normalizedTag)) continue;
+      if (!allTimeByUtm[normalizedTag]) allTimeByUtm[normalizedTag] = { sales: 0, revenue: 0 };
+      allTimeByUtm[normalizedTag].sales += 1;
+      allTimeByUtm[normalizedTag].revenue += p.price_reais ?? 0;
     }
 
     const uniqueVideos: {
