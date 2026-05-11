@@ -15,6 +15,8 @@ interface SupabaseRow {
   raw_payload: Record<string, unknown> | null;
 }
 
+type EventType = "REFUNDED" | "CHARGEDBACK" | "CANCELLED" | "PAYMENT_FAILED";
+
 interface EventRow {
   id: string;
   transaction_id: string;
@@ -23,9 +25,58 @@ interface EventRow {
   product_name: string;
   amount: number;
   date: string;
-  event_type: "REFUNDED" | "CHARGEDBACK" | "CANCELLED";
+  event_type: EventType;
   original_purchase_date: string | null;
   days_to_event: number | null;
+  refuse_reason: string | null;
+}
+
+const REFUSE_CODE_MAP: Record<string, string> = {
+  cc_rejected_high_risk: "Alto risco (antifraude)",
+  cc_rejected_insufficient_amount: "Saldo insuficiente",
+  cc_rejected_call_for_authorize: "Cartão com restrição",
+  cc_rejected_card_type_not_allowed: "Tipo de cartão não aceito",
+  not_authorized: "Não autorizado",
+  "1004": "Não autorizado",
+  "1016": "Não autorizado",
+};
+
+function classifyCancellation(raw: Record<string, unknown> | null): {
+  eventType: EventType;
+  refuseReason: string | null;
+} {
+  if (!raw || Object.keys(raw).length === 0) {
+    return { eventType: "CANCELLED", refuseReason: null };
+  }
+
+  const transactions = (raw.transactions as Array<Record<string, unknown>>) ?? [];
+
+  if (transactions.length === 0) {
+    return { eventType: "CANCELLED", refuseReason: null };
+  }
+
+  const refuseCodes: string[] = [];
+  let hasFailure = false;
+
+  for (const txn of transactions) {
+    if (txn.refuse_code) {
+      refuseCodes.push(String(txn.refuse_code));
+      hasFailure = true;
+    }
+    if (txn.status === "FAILED") {
+      hasFailure = true;
+    }
+  }
+
+  if (hasFailure) {
+    const primaryCode = refuseCodes[0] ?? null;
+    const reason = primaryCode
+      ? REFUSE_CODE_MAP[primaryCode] ?? `Recusado (${primaryCode})`
+      : "Pagamento falhou";
+    return { eventType: "PAYMENT_FAILED", refuseReason: reason };
+  }
+
+  return { eventType: "CANCELLED", refuseReason: null };
 }
 
 export async function GET(request: Request) {
@@ -79,15 +130,10 @@ export async function GET(request: Request) {
 
     const totalSales = purchaseRows.length;
 
-    function parseRow(
-      row: SupabaseRow,
-      defaultType: "REFUNDED" | "CANCELLED"
-    ): EventRow {
+    function parseRefundRow(row: SupabaseRow): EventRow {
       const rawStatus = (row.raw_payload?.status as string) ?? "";
-      let event_type: EventRow["event_type"] = defaultType;
+      let event_type: EventType = "REFUNDED";
       if (rawStatus === "CHARGEDBACK") event_type = "CHARGEDBACK";
-      else if (rawStatus === "REFUNDED") event_type = "REFUNDED";
-      else if (rawStatus === "CANCELLED") event_type = "CANCELLED";
 
       const purchaseDateStr =
         (row.raw_payload?.purchase_date as string) ?? null;
@@ -116,12 +162,47 @@ export async function GET(request: Request) {
         event_type,
         original_purchase_date,
         days_to_event,
+        refuse_reason: null,
+      };
+    }
+
+    function parseCancellationRow(row: SupabaseRow): EventRow {
+      const { eventType, refuseReason } = classifyCancellation(row.raw_payload);
+
+      const purchaseDateStr =
+        (row.raw_payload?.purchase_date as string) ?? null;
+      let original_purchase_date: string | null = null;
+      let days_to_event: number | null = null;
+
+      if (purchaseDateStr) {
+        original_purchase_date = purchaseDateStr.slice(0, 10);
+        const purchaseMs = new Date(purchaseDateStr).getTime();
+        const eventMs = new Date(row.occurred_at).getTime();
+        if (!isNaN(purchaseMs) && !isNaN(eventMs)) {
+          days_to_event = Math.round(
+            (eventMs - purchaseMs) / (1000 * 60 * 60 * 24)
+          );
+        }
+      }
+
+      return {
+        id: row.id,
+        transaction_id: row.transaction_id,
+        customer_name: row.customer_name,
+        customer_email: row.customer_email,
+        product_name: row.product_name || "Comunidade Maestros da IA",
+        amount: (row.amount_cents ?? 0) / 100,
+        date: row.occurred_at,
+        event_type: eventType,
+        original_purchase_date,
+        days_to_event,
+        refuse_reason: refuseReason,
       };
     }
 
     const allEvents: EventRow[] = [
-      ...refundRows.map((r) => parseRow(r, "REFUNDED")),
-      ...cancellationRows.map((r) => parseRow(r, "CANCELLED")),
+      ...refundRows.map(parseRefundRow),
+      ...cancellationRows.map(parseCancellationRow),
     ].sort((a, b) => a.date.localeCompare(b.date));
 
     const refundCount = allEvents.filter(
@@ -132,6 +213,9 @@ export async function GET(request: Request) {
     ).length;
     const cancellationCount = allEvents.filter(
       (e) => e.event_type === "CANCELLED"
+    ).length;
+    const paymentFailedCount = allEvents.filter(
+      (e) => e.event_type === "PAYMENT_FAILED"
     ).length;
     const totalRefundAmount = allEvents
       .filter(
@@ -147,10 +231,16 @@ export async function GET(request: Request) {
       totalSales > 0
         ? Math.round((cancellationCount / totalSales) * 10000) / 100
         : 0;
+    const churnRate =
+      totalSales > 0
+        ? Math.round(
+            ((refundCount + cancellationCount) / totalSales) * 10000
+          ) / 100
+        : 0;
 
     const byDay = new Map<
       string,
-      { refunds: number; cancellations: number; chargebacks: number }
+      { refunds: number; cancellations: number; chargebacks: number; payment_failed: number }
     >();
     for (const e of allEvents) {
       const d = extractPurchaseDate(e.date);
@@ -158,9 +248,11 @@ export async function GET(request: Request) {
         refunds: 0,
         cancellations: 0,
         chargebacks: 0,
+        payment_failed: 0,
       };
       if (e.event_type === "CHARGEDBACK") existing.chargebacks += 1;
       else if (e.event_type === "REFUNDED") existing.refunds += 1;
+      else if (e.event_type === "PAYMENT_FAILED") existing.payment_failed += 1;
       else existing.cancellations += 1;
       byDay.set(d, existing);
     }
@@ -174,10 +266,12 @@ export async function GET(request: Request) {
         totalRefunds: refundCount,
         totalChargebacks: chargebackCount,
         totalCancellations: cancellationCount,
+        totalPaymentsFailed: paymentFailedCount,
         totalRefundAmount,
         totalSales,
         refundRate,
         cancellationRate,
+        churnRate,
       },
       series,
       events: allEvents,

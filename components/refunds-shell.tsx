@@ -8,7 +8,7 @@ import { MetricCard } from "./metric-card";
 import { NavHeader } from "./nav-header";
 import { Skeleton } from "@/components/ui/skeleton";
 
-type EventType = "REFUNDED" | "CHARGEDBACK" | "CANCELLED";
+type EventType = "REFUNDED" | "CHARGEDBACK" | "CANCELLED" | "PAYMENT_FAILED";
 
 interface EventRow {
   id: string;
@@ -21,16 +21,19 @@ interface EventRow {
   event_type: EventType;
   original_purchase_date: string | null;
   days_to_event: number | null;
+  refuse_reason: string | null;
 }
 
 interface Summary {
   totalRefunds: number;
   totalChargebacks: number;
   totalCancellations: number;
+  totalPaymentsFailed: number;
   totalRefundAmount: number;
   totalSales: number;
   refundRate: number;
   cancellationRate: number;
+  churnRate: number;
 }
 
 interface DaySeries {
@@ -38,6 +41,7 @@ interface DaySeries {
   refunds: number;
   cancellations: number;
   chargebacks: number;
+  payment_failed: number;
 }
 
 interface ApiResponse {
@@ -58,12 +62,14 @@ const EVENT_LABELS: Record<EventType, string> = {
   REFUNDED: "Reembolso",
   CHARGEDBACK: "Chargeback",
   CANCELLED: "Cancelamento",
+  PAYMENT_FAILED: "Pagamento Recusado",
 };
 
 const EVENT_COLORS: Record<EventType, { bg: string; text: string; dot: string }> = {
   REFUNDED: { bg: "bg-orange-500/15", text: "text-orange-400", dot: "bg-orange-400" },
   CHARGEDBACK: { bg: "bg-rose-500/15", text: "text-rose-400", dot: "bg-rose-400" },
-  CANCELLED: { bg: "bg-violet-500/15", text: "text-violet-400", dot: "bg-violet-400" },
+  CANCELLED: { bg: "bg-red-500/15", text: "text-red-400", dot: "bg-red-400" },
+  PAYMENT_FAILED: { bg: "bg-zinc-500/15", text: "text-zinc-400", dot: "bg-zinc-400" },
 };
 
 type SortField = "date" | "customer_name" | "amount" | "event_type" | "days_to_event";
@@ -185,7 +191,7 @@ export function RefundsShell() {
     if (!filteredEvents.length) return;
 
     const csvHeader =
-      "Nome,Email,Produto,Valor (R$),Data,Tipo,Data Compra Original,Dias até Evento\n";
+      "Nome,Email,Produto,Valor (R$),Data,Tipo,Data Compra Original,Dias até Evento,Motivo Recusa\n";
     const csvRows = filteredEvents
       .map((e) =>
         [
@@ -197,6 +203,7 @@ export function RefundsShell() {
           EVENT_LABELS[e.event_type],
           e.original_purchase_date ? formatDate(e.original_purchase_date + "T00:00:00Z") : "—",
           e.days_to_event != null ? String(e.days_to_event) : "—",
+          e.refuse_reason ? `"${e.refuse_reason}"` : "—",
         ].join(",")
       )
       .join("\n");
@@ -216,9 +223,17 @@ export function RefundsShell() {
     dia: formatDay(s.day),
     Reembolsos: s.refunds + s.chargebacks,
     Cancelamentos: s.cancellations,
+    "Pgtos Recusados": s.payment_failed,
   }));
 
   const summary = data?.summary;
+
+  const FILTER_TABS: { key: EventType | "ALL"; label: string }[] = [
+    { key: "ALL", label: "Todos" },
+    { key: "REFUNDED", label: "Reembolsos" },
+    { key: "CANCELLED", label: "Cancelamentos" },
+    { key: "PAYMENT_FAILED", label: "Pgtos Recusados" },
+  ];
 
   return (
     <div className="min-h-screen bg-surface-0">
@@ -254,10 +269,10 @@ export function RefundsShell() {
           </div>
         </div>
 
-        {/* Summary cards */}
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        {/* Summary cards — row 1 */}
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
           <MetricCard
-            title="Total Reembolsos"
+            title="Reembolsos"
             value={summary?.totalRefunds}
             suffix={
               summary && summary.totalChargebacks > 0
@@ -267,40 +282,34 @@ export function RefundsShell() {
             loading={loading}
           />
           <MetricCard
-            title="Total Cancelamentos"
+            title="Cancelamentos Voluntários"
             value={summary?.totalCancellations}
-            loading={loading}
-          />
-          <MetricCard
-            title="Taxa de Reembolso"
-            value={
-              summary ? `${summary.refundRate.toFixed(1)}%` : undefined
-            }
             suffix={
               summary
-                ? `${summary.totalRefunds} de ${summary.totalSales} vendas`
+                ? `${summary.cancellationRate.toFixed(1)}% de ${summary.totalSales} vendas`
                 : undefined
             }
             loading={loading}
           />
           <MetricCard
-            title="Taxa de Cancelamento"
+            title="Pagamentos Recusados"
+            value={summary?.totalPaymentsFailed}
+            loading={loading}
+          />
+          <MetricCard
+            title="Total Perdas (Churn)"
             value={
-              summary ? `${summary.cancellationRate.toFixed(1)}%` : undefined
+              summary
+                ? summary.totalRefunds + summary.totalCancellations
+                : undefined
             }
             suffix={
-              summary
-                ? `${summary.totalCancellations} de ${summary.totalSales} vendas`
-                : undefined
+              summary ? `${summary.churnRate.toFixed(1)}% de ${summary.totalSales} vendas` : undefined
             }
             loading={loading}
           />
-        </div>
-
-        {/* Refund amount card */}
-        <div className="mt-4">
           <MetricCard
-            title="Valor Total Reembolsado"
+            title="Valor Reembolsado"
             value={summary ? formatCurrency(summary.totalRefundAmount) : undefined}
             loading={loading}
           />
@@ -309,7 +318,7 @@ export function RefundsShell() {
         {/* Chart */}
         <div className="mt-6 rounded-xl border border-border bg-card p-6 shadow-[var(--shadow-elevation-1)]">
           <h3 className="mb-5 text-sm font-semibold text-foreground">
-            Reembolsos e cancelamentos por dia
+            Eventos por dia
           </h3>
           {loading ? (
             <Skeleton className="h-[260px] w-full rounded-lg" />
@@ -322,8 +331,8 @@ export function RefundsShell() {
               className="h-[260px] [&_.recharts-cartesian-grid_line]:stroke-[oklch(1_0_0/0.06)] [&_.recharts-yAxis_text]:fill-[oklch(0.7_0.01_260)] [&_.recharts-xAxis_text]:fill-[oklch(0.7_0.01_260)]"
               data={chartData}
               index="dia"
-              categories={["Reembolsos", "Cancelamentos"]}
-              colors={["rose", "violet"]}
+              categories={["Reembolsos", "Cancelamentos", "Pgtos Recusados"]}
+              colors={["rose", "red", "zinc"]}
               stack
               showAnimation
               showLegend
@@ -339,27 +348,23 @@ export function RefundsShell() {
         {/* Event type filter + CSV export */}
         <div className="mt-6 flex items-center justify-between">
           <div className="flex items-center gap-1 rounded-lg border border-border bg-surface-1 p-0.5">
-            {(["ALL", "REFUNDED", "CHARGEDBACK", "CANCELLED"] as const).map(
-              (type) => (
-                <button
-                  key={type}
-                  type="button"
-                  onClick={() => {
-                    setFilterType(type);
-                    setPage(0);
-                  }}
-                  className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                    filterType === type
-                      ? "bg-surface-3 text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground hover:bg-surface-2"
-                  }`}
-                >
-                  {type === "ALL"
-                    ? "Todos"
-                    : EVENT_LABELS[type]}
-                </button>
-              )
-            )}
+            {FILTER_TABS.map(({ key, label }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => {
+                  setFilterType(key);
+                  setPage(0);
+                }}
+                className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                  filterType === key
+                    ? "bg-surface-3 text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground hover:bg-surface-2"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
           </div>
           <button
             type="button"
@@ -409,7 +414,7 @@ export function RefundsShell() {
                         </th>
                       ))}
                       <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                        Produto
+                        Motivo / Produto
                       </th>
                     </tr>
                   </thead>
@@ -457,8 +462,14 @@ export function RefundsShell() {
                               ? `${e.days_to_event} dia${e.days_to_event !== 1 ? "s" : ""}`
                               : "—"}
                           </td>
-                          <td className="px-4 py-3 text-xs text-muted-foreground truncate max-w-[180px]">
-                            {e.product_name}
+                          <td className="px-4 py-3 text-xs text-muted-foreground max-w-[220px]">
+                            {e.refuse_reason ? (
+                              <span className="inline-flex items-center gap-1.5 rounded-md bg-zinc-500/10 px-2 py-0.5 text-[11px] font-medium text-zinc-400">
+                                {e.refuse_reason}
+                              </span>
+                            ) : (
+                              <span className="truncate block">{e.product_name}</span>
+                            )}
                           </td>
                         </tr>
                       );
