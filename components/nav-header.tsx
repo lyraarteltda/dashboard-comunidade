@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard" },
+  { href: "/refunds", label: "Reembolsos" },
   { href: "/activity-log", label: "Registro de Atividades" },
 ] as const;
 

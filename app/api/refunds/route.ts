@@ -60,13 +60,17 @@ export async function GET(request: Request) {
       .map(([day, { count, amount }]) => ({ day, count, amount }))
       .sort((a, b) => a.day.localeCompare(b.day));
 
-    const recent = rows.slice(-10).reverse().map((r) => ({
-      name: r.customer_name,
-      email: r.customer_email,
-      reason: "Reembolso",
-      amount: (r.amount_cents ?? 0) / 100,
-      date: r.occurred_at,
-    }));
+    const recent = rows.slice(-10).reverse().map((r) => {
+      const rawStatus = (r.raw_payload?.status as string) ?? "REFUNDED";
+      return {
+        name: r.customer_name,
+        email: r.customer_email,
+        reason: rawStatus === "CHARGEDBACK" ? "Chargeback" : "Reembolso",
+        event_type: rawStatus,
+        amount: (r.amount_cents ?? 0) / 100,
+        date: r.occurred_at,
+      };
+    });
 
     return NextResponse.json({
       totalRefunds: rows.length,
