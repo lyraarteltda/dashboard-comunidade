@@ -12,6 +12,11 @@ import { DateRangePicker } from "./date-range-picker";
 import { NavHeader } from "./nav-header";
 import { YouTubeMetrics } from "./youtube-metrics";
 import { YouTubeRevenueTable, type YouTubeRevenueData } from "./youtube-revenue-table";
+import { ViewsChart } from "./views-chart";
+import { SignupsChart } from "./signups-chart";
+import { ViewsVsPurchasesChart } from "./views-vs-purchases-chart";
+import { RefundsChart } from "./refunds-chart";
+import { CancellationsChart } from "./cancellations-chart";
 
 interface MetricsData {
   totalVisits: number;
@@ -37,6 +42,19 @@ interface ConversionData {
 }
 
 interface RefundsData {
+  totalRefunds: number;
+  totalAmount: number;
+  series: { day: string; count: number; amount: number }[];
+  fetchedAt: string;
+}
+
+interface SignupsData {
+  totalSignups: number;
+  series: { day: string; count: number }[];
+  fetchedAt: string;
+}
+
+interface CancellationsData {
   totalRefunds: number;
   totalAmount: number;
   series: { day: string; count: number; amount: number }[];
@@ -93,6 +111,8 @@ export function DashboardShell() {
   const [conversion, setConversion] = useState<ConversionData | null>(null);
   const [refunds, setRefunds] = useState<RefundsData | null>(null);
   const [utmBuyers, setUtmBuyers] = useState<UtmBuyersData | null>(null);
+  const [signups, setSignups] = useState<SignupsData | null>(null);
+  const [cancellations, setCancellations] = useState<CancellationsData | null>(null);
 
   const [youtube, setYoutube] = useState<YouTubeData | null>(null);
   const [youtubeRevenue, setYoutubeRevenue] = useState<YouTubeRevenueData | null>(null);
@@ -101,6 +121,8 @@ export function DashboardShell() {
   const [conversionLoading, setConversionLoading] = useState(true);
   const [refundsLoading, setRefundsLoading] = useState(true);
   const [utmBuyersLoading, setUtmBuyersLoading] = useState(true);
+  const [signupsLoading, setSignupsLoading] = useState(true);
+  const [cancellationsLoading, setCancellationsLoading] = useState(true);
   const [youtubeLoading, setYoutubeLoading] = useState(true);
   const [youtubeRevenueLoading, setYoutubeRevenueLoading] = useState(true);
   const [error, setError] = useState("");
@@ -114,6 +136,8 @@ export function DashboardShell() {
     setConversionLoading(true);
     setRefundsLoading(true);
     setUtmBuyersLoading(true);
+    setSignupsLoading(true);
+    setCancellationsLoading(true);
     setYoutubeLoading(true);
     setYoutubeRevenueLoading(true);
     setError("");
@@ -166,6 +190,30 @@ export function DashboardShell() {
       }
     };
 
+    const fetchSignups = async () => {
+      try {
+        const res = await fetch(`/api/signups?${qs}`);
+        if (!res.ok) throw new Error("Falha ao carregar cadastros");
+        setSignups(await res.json());
+      } catch {
+        // non-blocking
+      } finally {
+        setSignupsLoading(false);
+      }
+    };
+
+    const fetchCancellations = async () => {
+      try {
+        const res = await fetch(`/api/cancellations?${qs}`);
+        if (!res.ok) throw new Error("Falha ao carregar cancelamentos");
+        setCancellations(await res.json());
+      } catch {
+        // non-blocking
+      } finally {
+        setCancellationsLoading(false);
+      }
+    };
+
     const fetchYoutube = async () => {
       try {
         const res = await fetch("/api/youtube");
@@ -195,6 +243,8 @@ export function DashboardShell() {
       fetchConversion(),
       fetchRefunds(),
       fetchUtmBuyers(),
+      fetchSignups(),
+      fetchCancellations(),
       fetchYoutube(),
       fetchYoutubeRevenue(),
     ]);
@@ -321,6 +371,39 @@ export function DashboardShell() {
           <UtmContentBarsChart
             data={utmBuyers?.aggregated.utm_content || []}
             loading={utmBuyersLoading}
+          />
+        </div>
+
+        {/* ROW — Views | Sign-ups (side by side) */}
+        <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+          <ViewsChart
+            series={metrics?.visitsSeries || []}
+            loading={metricsLoading}
+          />
+          <SignupsChart
+            series={signups?.series || []}
+            loading={signupsLoading}
+          />
+        </div>
+
+        {/* ROW — Views vs Purchases (full width) */}
+        <div className="mt-6">
+          <ViewsVsPurchasesChart
+            visitsSeries={metrics?.visitsSeries || []}
+            conversionSeries={conversion?.series || []}
+            loading={metricsLoading || conversionLoading}
+          />
+        </div>
+
+        {/* ROW — Refunds | Cancellations (side by side) */}
+        <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+          <RefundsChart
+            series={refunds?.series || []}
+            loading={refundsLoading}
+          />
+          <CancellationsChart
+            series={cancellations?.series || []}
+            loading={cancellationsLoading}
           />
         </div>
 
