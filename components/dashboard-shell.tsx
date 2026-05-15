@@ -17,6 +17,7 @@ import { SignupsChart } from "./signups-chart";
 import { ViewsVsPurchasesChart } from "./views-vs-purchases-chart";
 import { RefundsChart } from "./refunds-chart";
 import { CancellationsChart } from "./cancellations-chart";
+import { MasterChart } from "./master-chart";
 
 interface MetricsData {
   totalVisits: number;
@@ -341,6 +342,18 @@ export function DashboardShell() {
                 : undefined
             }
             loading={refundsLoading || conversionLoading}
+          />
+        </div>
+
+        {/* MASTER LINE CHART */}
+        <div className="mt-6">
+          <MasterChart
+            visitsSeries={metrics?.visitsSeries || []}
+            conversionSeries={conversion?.series || []}
+            refundsSeries={refunds?.series || []}
+            signupsSeries={signups?.series || []}
+            cancellationsSeries={cancellations?.series || []}
+            loading={metricsLoading || conversionLoading || refundsLoading || signupsLoading || cancellationsLoading}
           />
         </div>
 
