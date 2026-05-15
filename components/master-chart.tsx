@@ -4,6 +4,16 @@ import { useState } from "react";
 import { AreaChart } from "@tremor/react";
 import { Skeleton } from "@/components/ui/skeleton";
 
+function formatRawValue(key: string, value: number): string {
+  if (key === "Receita") {
+    return `R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+  if (key.includes("%")) {
+    return `${value.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
+  }
+  return value.toLocaleString("pt-BR");
+}
+
 interface MasterChartProps {
   visitsSeries: { day: string; pageviews: number }[];
   conversionSeries: {
@@ -95,7 +105,7 @@ export function MasterChart({
     ...cancellationsSeries.map((s) => s.day),
   ]);
 
-  const chartData = Array.from(allDays)
+  const rawData = Array.from(allDays)
     .sort()
     .map((day) => {
       const conv = convByDay.get(day);
@@ -115,6 +125,22 @@ export function MasterChart({
         "Taxa de Reembolso %": Number(refundRate.toFixed(1)),
       };
     });
+
+  const metricKeys = METRICS.map((m) => m.key);
+  const maxValues: Record<string, number> = {};
+  for (const key of metricKeys) {
+    maxValues[key] = Math.max(...rawData.map((d) => (d as Record<string, number | string>)[key] as number), 0.001);
+  }
+
+  const chartData = rawData.map((row) => {
+    const normalized: Record<string, number | string> = { dia: row.dia };
+    for (const key of metricKeys) {
+      const raw = (row as Record<string, number | string>)[key] as number;
+      normalized[key] = (raw / maxValues[key]) * 100;
+      normalized[`_raw_${key}`] = raw;
+    }
+    return normalized;
+  });
 
   const activeMetrics = METRICS.filter((m) => enabled.has(m.key));
   const activeCategories = activeMetrics.map((m) => m.key);
@@ -149,6 +175,10 @@ export function MasterChart({
         })}
       </div>
 
+      <p className="mb-3 text-[11px] text-muted-foreground/70 italic">
+        Valores normalizados (0–100%) para comparação de tendências
+      </p>
+
       {chartData.length === 0 ? (
         <p className="text-sm text-muted-foreground">Sem dados no período</p>
       ) : (
@@ -165,8 +195,34 @@ export function MasterChart({
           showXAxis
           showGridLines
           yAxisWidth={72}
-          autoMinValue
-          valueFormatter={(v: number) => v.toLocaleString("pt-BR")}
+          minValue={0}
+          maxValue={100}
+          valueFormatter={(v: number) => `${Math.round(v)}%`}
+          customTooltip={({ payload, active, label }) => {
+            if (!active || !payload?.length) return null;
+            return (
+              <div className="rounded-lg border border-border bg-card px-3 py-2 shadow-lg">
+                <p className="mb-1 text-xs font-medium text-foreground">{label}</p>
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                {payload.map((entry: any) => {
+                  const key = String(entry.dataKey ?? "");
+                  const raw = (entry.payload as Record<string, number>)?.[`_raw_${key}`] ?? 0;
+                  return (
+                    <div key={key} className="flex items-center gap-2 text-xs">
+                      <span
+                        className="inline-block h-2 w-2 rounded-full"
+                        style={{ backgroundColor: entry.color }}
+                      />
+                      <span className="text-muted-foreground">{key}:</span>
+                      <span className="font-medium text-foreground">
+                        {formatRawValue(key, raw)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          }}
         />
       )}
     </div>
