@@ -11,6 +11,9 @@ function formatRawValue(key: string, value: number): string {
   if (key.includes("%")) {
     return `${value.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
   }
+  if (key === "YT Views") {
+    return value.toLocaleString("pt-BR");
+  }
   return value.toLocaleString("pt-BR");
 }
 
@@ -26,6 +29,7 @@ interface MasterChartProps {
   refundsSeries: { day: string; count: number; amount: number }[];
   signupsSeries: { day: string; count: number }[];
   cancellationsSeries: { day: string; count: number; amount: number }[];
+  ytViewsSeries: { day: string; views: number }[];
   loading?: boolean;
 }
 
@@ -38,6 +42,7 @@ const METRICS = [
   { key: "Cancelamentos", label: "Cancelamentos", color: "amber" },
   { key: "Taxa de Conversão %", label: "Conversão %", color: "indigo" },
   { key: "Taxa de Reembolso %", label: "Reembolso %", color: "pink" },
+  { key: "YT Views", label: "YT Views", color: "orange" },
 ] as const;
 
 type MetricKey = (typeof METRICS)[number]["key"];
@@ -51,6 +56,7 @@ const COLOR_DOT: Record<string, string> = {
   amber: "bg-amber-500",
   indigo: "bg-indigo-500",
   pink: "bg-pink-500",
+  orange: "bg-orange-500",
 };
 
 function formatDay(dateStr: string): string {
@@ -64,6 +70,7 @@ export function MasterChart({
   refundsSeries,
   signupsSeries,
   cancellationsSeries,
+  ytViewsSeries,
   loading,
 }: MasterChartProps) {
   const [enabled, setEnabled] = useState<Set<MetricKey>>(
@@ -96,6 +103,7 @@ export function MasterChart({
   const cancelByDay = new Map(
     cancellationsSeries.map((s) => [s.day, s.count])
   );
+  const ytViewsByDay = new Map(ytViewsSeries.map((s) => [s.day, s.views]));
 
   const allDays = new Set([
     ...visitsSeries.map((s) => s.day),
@@ -103,6 +111,7 @@ export function MasterChart({
     ...refundsSeries.map((s) => s.day),
     ...signupsSeries.map((s) => s.day),
     ...cancellationsSeries.map((s) => s.day),
+    ...ytViewsSeries.map((s) => s.day),
   ]);
 
   const rawData = Array.from(allDays)
@@ -123,6 +132,7 @@ export function MasterChart({
         Cancelamentos: cancelByDay.get(day) ?? 0,
         "Taxa de Conversão %": conv?.conversion_pct ?? 0,
         "Taxa de Reembolso %": Number(refundRate.toFixed(1)),
+        "YT Views": ytViewsByDay.get(day) ?? 0,
       };
     });
 

@@ -117,6 +117,7 @@ export function DashboardShell() {
 
   const [youtube, setYoutube] = useState<YouTubeData | null>(null);
   const [youtubeRevenue, setYoutubeRevenue] = useState<YouTubeRevenueData | null>(null);
+  const [ytViews, setYtViews] = useState<{ series: { day: string; views: number }[] } | null>(null);
 
   const [metricsLoading, setMetricsLoading] = useState(true);
   const [conversionLoading, setConversionLoading] = useState(true);
@@ -126,6 +127,7 @@ export function DashboardShell() {
   const [cancellationsLoading, setCancellationsLoading] = useState(true);
   const [youtubeLoading, setYoutubeLoading] = useState(true);
   const [youtubeRevenueLoading, setYoutubeRevenueLoading] = useState(true);
+  const [ytViewsLoading, setYtViewsLoading] = useState(true);
   const [error, setError] = useState("");
 
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
@@ -141,6 +143,7 @@ export function DashboardShell() {
     setCancellationsLoading(true);
     setYoutubeLoading(true);
     setYoutubeRevenueLoading(true);
+    setYtViewsLoading(true);
     setError("");
 
     const fetchMetrics = async () => {
@@ -239,6 +242,18 @@ export function DashboardShell() {
       }
     };
 
+    const fetchYtViews = async () => {
+      try {
+        const res = await fetch(`/api/yt-views?${qs}`);
+        if (!res.ok) throw new Error("Falha ao carregar YT views");
+        setYtViews(await res.json());
+      } catch {
+        // non-blocking
+      } finally {
+        setYtViewsLoading(false);
+      }
+    };
+
     await Promise.all([
       fetchMetrics(),
       fetchConversion(),
@@ -248,6 +263,7 @@ export function DashboardShell() {
       fetchCancellations(),
       fetchYoutube(),
       fetchYoutubeRevenue(),
+      fetchYtViews(),
     ]);
   }, []);
 
@@ -353,7 +369,8 @@ export function DashboardShell() {
             refundsSeries={refunds?.series || []}
             signupsSeries={signups?.series || []}
             cancellationsSeries={cancellations?.series || []}
-            loading={metricsLoading || conversionLoading || refundsLoading || signupsLoading || cancellationsLoading}
+            ytViewsSeries={ytViews?.series || []}
+            loading={metricsLoading || conversionLoading || refundsLoading || signupsLoading || cancellationsLoading || ytViewsLoading}
           />
         </div>
 
