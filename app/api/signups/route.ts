@@ -3,6 +3,43 @@ import { parseDateRangeForSupabase, toSaoPauloDate } from "@/lib/date-params";
 
 export const dynamic = "force-dynamic";
 
+const PAGE_SIZE = 1000;
+
+async function fetchAllSignups(
+  supabaseUrl: string,
+  key: string,
+  since: string,
+  until: string
+): Promise<{ created_at: string }[]> {
+  const all: { created_at: string }[] = [];
+  let offset = 0;
+
+  while (true) {
+    const res = await fetch(
+      `${supabaseUrl}/rest/v1/community_signups?select=created_at&created_at=gte.${since}&created_at=lt.${until}&order=created_at.asc&limit=${PAGE_SIZE}&offset=${offset}`,
+      {
+        headers: {
+          apikey: key,
+          Authorization: `Bearer ${key}`,
+        },
+      }
+    );
+
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`Supabase error ${res.status}: ${body}`);
+    }
+
+    const rows: { created_at: string }[] = await res.json();
+    all.push(...rows);
+
+    if (rows.length < PAGE_SIZE) break;
+    offset += PAGE_SIZE;
+  }
+
+  return all;
+}
+
 export async function GET(request: Request) {
   const SUPABASE_URL = process.env.SUPABASE_URL;
   const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -18,23 +55,7 @@ export async function GET(request: Request) {
   const { since, until } = parseDateRangeForSupabase(searchParams);
 
   try {
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/community_signups?select=created_at&created_at=gte.${since}&created_at=lt.${until}&order=created_at.asc&limit=10000`,
-      {
-        headers: {
-          apikey: KEY,
-          Authorization: `Bearer ${KEY}`,
-        },
-      }
-    );
-
-    if (!res.ok) {
-      const body = await res.text();
-      console.error("Supabase error:", res.status, body);
-      return NextResponse.json({ error: "upstream" }, { status: 502 });
-    }
-
-    const rows: { created_at: string }[] = await res.json();
+    const rows = await fetchAllSignups(SUPABASE_URL, KEY, since, until);
 
     const byDay = new Map<string, number>();
     for (const r of rows) {
